@@ -37,3 +37,49 @@ Raw outputs live in `results/raw/` and are never overwritten or deleted.
   (2) "MOSHI:" speaker labels in appendix transcripts inflate term frequency, drowning out "latency".
 - Conclusion: pending. Fix options A/B/C/D under discussion. Candidate example for
   "How this library misleads a naive retriever".
+
+---
+
+# Overnight retrieval experiments (run by Claude while Sumukh slept, 2026-11-13)
+
+Scope set by Sumukh: compare retrieval methods (BM25 / embeddings / re-ranking) and chunking options.
+Citation format chosen by Sumukh: paper + section.
+**Hypotheses below were written and committed BEFORE any of these runs** (check the commit timestamps).
+
+Shared setup
+- Test set: `eval/retrieval_questions.json`, 36 questions written by Claude (30 answerable, 6 unanswerable).
+  Retrieval-only. Not the brief's 15 answer-quality questions, which Sumukh writes himself.
+- "Hit@k" = a chunk containing the gold evidence (regex, checked to exist in the PDF text) is in the top k.
+- No Groq calls. Measures whether the right passage *reaches* the model, not answer quality.
+- Embedding model: BAAI/bge-small-en-v1.5 (local, ONNX via fastembed). Re-ranker: ms-marco-MiniLM-L-6-v2 cross-encoder (local).
+  Neither uses Groq quota.
+
+## E03: Does stripping running headers fix the Moshi problem?
+- Hypothesis: yes for BM25 on header-trap questions (M1, M4, M5, M8): the paper title on every page is what
+  inflates "moshi". Little effect on embeddings, which care less about one repeated word.
+  Transcript question M11 should be unaffected.
+
+## E04: Chunk size (100 / 200 / 400 words, page-bound) and section-based chunks
+- Hypothesis: at the same k, bigger chunks find the answer more often (more text per slot) but cost
+  proportionally more tokens. 200 words is the best hit-rate-per-token. Section chunks will be uneven and
+  some sections are huge, so they need a size cap.
+
+## E05: BM25 vs embeddings vs hybrid
+- Hypothesis: BM25 wins on exact questions (numbers, names), embeddings win on paraphrase questions,
+  hybrid (merged rankings) is best overall. Embeddings add noticeable latency per query.
+
+## E06: Re-ranking on/off
+- Hypothesis: re-ranking helps most at small k (k=3), where order matters most. At k=8 it matters less.
+  Costs tens of ms per query on CPU.
+
+## E07: k = 3 / 5 / 8
+- Hypothesis: hit rate rises with k with diminishing returns; tokens rise linearly.
+
+## E08: Can retrieval scores alone flag an unanswerable question?
+- Hypothesis: only weakly. U6 ("latency of the Transformer in spoken dialogue") shares many words with
+  real passages, so a score threshold will misfire. The refuse/answer branch will need the LLM.
+
+## E09: Section detection for paper + section citations
+- Hypothesis: a numbered-heading pattern ("3.2.1 Scaled Dot-Product Attention") recovers most headings in
+  all three papers, but there will be false positives from table/figure text, and Moshi's appendix uses
+  a different style ("Appendix A.").
