@@ -10,3 +10,4 @@ venv/
 
 # Downloaded papers (re-fetch with scripts/fetch_papers.py)
 data/papers/*.pdf
+results/cache/

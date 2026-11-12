@@ -1,0 +1,9 @@
+clean,chunking,n_chunks,words_mean,words_max,bm25_build_ms,embed_ms_per_chunk
+True,section,280,230.0,300,18.8,653.7
+True,w100,732,93.3,100,22.1,269.0
+True,w200,399,168.1,200,19.7,532.7
+True,w400,229,279.5,400,19.9,643.0
+False,section,281,232.1,300,19.3,646.2
+False,w100,744,93.1,100,23.1,299.5
+False,w200,404,168.3,200,21.2,567.5
+False,w400,230,282.2,400,19.0,654.9

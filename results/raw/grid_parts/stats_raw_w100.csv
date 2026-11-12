@@ -1,0 +1,2 @@
+clean,chunking,n_chunks,words_mean,words_max,bm25_build_ms,embed_ms_per_chunk
+False,w100,744,93.1,100,23.1,299.5

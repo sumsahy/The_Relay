@@ -8,6 +8,27 @@ Git commits hold the code; this file holds the reasoning.
 
 ---
 
+## v0.2: retrieval experiment harness  (2026-11-13, overnight, run by Claude)
+
+**What exists (main pipeline unchanged)**
+- `experiments/retrieval_grid.py`: 48-config retrieval grid, no Groq calls, resumable with caches
+- `experiments/analyze_retrieval.py`: regenerates every number in the report from the raw CSV
+- `eval/retrieval_questions.json`: 36 retrieval test questions written by Claude (not the brief's 15)
+- Section-heading detector (needed for paper + section citations)
+- Report: `results/retrieval_report.md`
+
+**Decisions in this version**
+| Decision | Choice | Decided by | Status |
+|---|---|---|---|
+| Citation granularity | paper + section | Sumukh | final |
+| Scope of overnight experiments | retrieval method + chunking | Sumukh | done |
+| Run every combination, report one-change-at-a-time + interactions | full grid | Claude, explained to Sumukh | done |
+| Embedding / re-rank models | bge-small-en-v1.5 / ms-marco-MiniLM-L-6 via fastembed (torch install too heavy here) | Claude default | not reviewed |
+| Test questions for retrieval | written by Claude, 36 | Claude default | not reviewed |
+| Chunking, re-ranker, transcript fix, unanswerable pre-filter | see report | Sumukh | **pending** |
+
+---
+
 ## v0.1: setup + naive retrieval  (commit 589ccda, 2026-11-13)
 
 **What exists**

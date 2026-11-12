@@ -83,3 +83,24 @@ Shared setup
 - Hypothesis: a numbered-heading pattern ("3.2.1 Scaled Dot-Product Attention") recovers most headings in
   all three papers, but there will be false positives from table/figure text, and Moshi's appendix uses
   a different style ("Appendix A.").
+
+## Results for E03 to E09 (run after the hypotheses above were committed)
+
+Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md`. Raw: `results/raw/retrieval_grid_per_question.csv`.
+
+- **E03 header stripping:** WRONG. No measurable effect (one question moved 5 -> 6). The Moshi latency miss is caused by
+  appendix transcripts, and it is fixed by bigger chunks (400 words / section: rank 2 to 3), not by cleaning.
+- **E04 chunk size:** PARTLY. 100 words clearly worse (BM25 14/30 vs 21/30). 400 no better than 200 at +80% tokens.
+  Section chunks best (hybrid 25 to 26/30) at +40% tokens vs 200 words. 24% of 200-word chunks span two sections.
+- **E05 method:** RIGHT. BM25 13/15 exact, 3/8 paraphrase. Embeddings 11/15 exact, 6/8 paraphrase.
+  Switching BM25 -> embeddings: +7 / -6 questions. Hybrid hit@3 13 -> 21.
+- **E06 re-ranking:** PARTLY. Helps (best hit@8 = 27), but costs ~1.4 s/question on 2 vCPU (68 ms x 20 pairs), not tens of ms.
+- **E07 k:** RIGHT. 5 -> 8 = +60% tokens for +2 questions.
+- **E08 unanswerable:** PARTLY WRONG. Embedding top-1 score separates 94% with one threshold (6 unanswerable only: overfit risk).
+- **E09 section detection:** RIGHT after fixes: 3 false positives (numbered list items) and 1 miss (hyphen in "H-Net") fixed.
+- **Surprise:** A6 ("relationships between words that are far apart") missed by all 48 configs: vocabulary mismatch.
+- **Surprise:** cross-paper question X1: one paper fills the top 5; the second paper's evidence first appears at rank 20.
+- **Measurement errors caught before publishing:** first report draft said the Moshi latency question fails in *all*
+  BM25 configs (false: bigger chunks find it) and quoted section+hybrid as 26 (it is 25 clean / 26 raw). Both corrected
+  after re-checking the raw CSV.
+- **Conclusion:** no code change to the main pipeline yet. Decisions are Sumukh's (see end of the report).
