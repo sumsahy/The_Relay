@@ -1,4 +1,4 @@
-"""Table 3: run Sumukh's questions through each retrieval setting on REAL Groq, slowly, within the limits.
+"""Table 3: run Divyanshi's questions through each retrieval setting on REAL Groq, slowly, within the limits.
 
 - Paced: before each question, waits until the per-minute token bucket has room (from Groq's own headers).
 - Resumable: skips (setting, question) pairs already done, so it can be stopped and restarted any time.

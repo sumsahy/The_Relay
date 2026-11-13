@@ -3,7 +3,7 @@
 What the system looks like at each version, what changed, and **who decided and why**.
 Git commits hold the code; this file holds the reasoning.
 
-`Decided by`: **Sumukh** = I reasoned and chose. **Claude default** = assistant chose, not yet reviewed by me.
+`Decided by`: **Divyanshi** = I reasoned and chose. **Claude default** = assistant chose, not yet reviewed by me.
 **Overruled** = I changed an assistant suggestion (these feed "How I worked with the assistant").
 
 ---
@@ -11,7 +11,7 @@ Git commits hold the code; this file holds the reasoning.
 ## Grading decisions  (2026-11-14 03:46)
 | Decision | Choice | Decided by | Status |
 |---|---|---|---|
-| Q10 wrongly refused (stitched "..." quotes failed the quote check, E17) | **leave the system as is**, grade `refused_wrongly`, document the flaw | Sumukh (Claude offered a fix + rerun) | final |
+| Q10 wrongly refused (stitched "..." quotes failed the quote check, E17) | **leave the system as is**, grade `refused_wrongly`, document the flaw | Divyanshi (Claude offered a fix + rerun) | final |
 
 ---
 
@@ -34,7 +34,7 @@ Naive (no limiter/queue, retries on) 29 answered, 67 rate-limited, **145 retries
 
 | Decision | Choice | Decided by | Status |
 |---|---|---|---|
-| Stand-in capacity for load scenarios | 10x account limits (pending Sumukh's answer) | Claude recommendation | **pending** |
+| Stand-in capacity for load scenarios | 10x account limits (pending Divyanshi's answer) | Claude recommendation | **pending** |
 | Patience model | lognormal, median 45 s | Claude default (least certain assumption) | not reviewed |
 | Extra results.csv columns | outcome + waiting/working/retrying split | Claude default | not reviewed |
 | Abandoned requests | dropped from queue; cancelled mid-work | Claude default | not reviewed |
@@ -45,10 +45,10 @@ Naive (no limiter/queue, retries on) 29 answered, 67 rate-limited, **145 retries
 
 | Decision | Choice | Decided by | Principle | Status |
 |---|---|---|---|---|
-| Cross-paper answer missing a paper (E13) | **enforce** a targeted second retrieval from that paper + draft only its part, once. If nothing verifies, say so explicitly | Sumukh (overruled Claude's "message only" lean). Claude added: enforce the *attempt*, not a claim | P1, P7 | final |
-| Draft max_tokens | 500 (700 for cross-paper). If a draft is cut off, retry that call once at 1,000: only that request pays | Sumukh: 500 + "leeway for that request". Mechanism: Claude | P6, P9 | final |
-| Log calls that hit max_tokens | yes (`hit_max_tokens` per request and per call) | Sumukh | | final |
-| Retry policy | per-minute 429: wait retry-after + up to 1 s jitter, max 2 retries per step, max 30 s total wait per request. Daily 429: never | Sumukh (accepted Claude's proposal) | P5, P7 | final |
+| Cross-paper answer missing a paper (E13) | **enforce** a targeted second retrieval from that paper + draft only its part, once. If nothing verifies, say so explicitly | Divyanshi (overruled Claude's "message only" lean). Claude added: enforce the *attempt*, not a claim | P1, P7 | final |
+| Draft max_tokens | 500 (700 for cross-paper). If a draft is cut off, retry that call once at 1,000: only that request pays | Divyanshi: 500 + "leeway for that request". Mechanism: Claude | P6, P9 | final |
+| Log calls that hit max_tokens | yes (`hit_max_tokens` per request and per call) | Divyanshi | | final |
+| Retry policy | per-minute 429: wait retry-after + up to 1 s jitter, max 2 retries per step, max 30 s total wait per request. Daily 429: never | Divyanshi (accepted Claude's proposal) | P5, P7 | final |
 | Table 3 settings | w200/k5/bm25 (naive), section/k5/hybrid (chosen), section/k3/hybrid (cheaper) | Claude default | | **not reviewed** |
 | Table 3 runner | paced by Groq's own token headers, resumable, stops cleanly at the daily limit | Claude default | P6 | not reviewed |
 
@@ -69,9 +69,9 @@ Tests: 13 offline cases pass, incl. both cross-paper outcomes, truncation leeway
 **Decisions in this version**
 | Decision | Choice | Decided by | Principle | Status |
 |---|---|---|---|---|
-| Tensions T1-T4 resolutions | as written in PRINCIPLES.md | Sumukh (confirmed Claude's proposals) | | final |
-| Verification | both: code checks the exact quote, then LLM checks support | Sumukh | P1 | final |
-| LLM-verify only when idle | rejected | Sumukh, Claude withdrew its lean | P8 | final |
+| Tensions T1-T4 resolutions | as written in PRINCIPLES.md | Divyanshi (confirmed Claude's proposals) | | final |
+| Verification | both: code checks the exact quote, then LLM checks support | Divyanshi | P1 | final |
+| LLM-verify only when idle | rejected | Divyanshi, Claude withdrew its lean | P8 | final |
 | Classify | code (paper-name keywords), no LLM call | Claude default | P9 | **not reviewed**: LLM classify (query rewrite for A6, X1) still to test |
 | Cross-paper questions | k=5 shared across named papers (at least 2 each) | Claude default | P1 | not reviewed |
 | Failed claims | dropped, answer labelled "reduced"; if none survive, redraft once, then refuse | Claude default | P1, P4 | **not reviewed**: is this P4 "last resort"? |
@@ -84,7 +84,7 @@ Tests: 13 offline cases pass, incl. both cross-paper outcomes, truncation leeway
 ---
 
 ## Principles set  (2026-11-13, 23:30)
-Sumukh wrote down the user-experience principles **before** deciding the pipeline: see `PRINCIPLES.md` (P1 to P9).
+Divyanshi wrote down the user-experience principles **before** deciding the pipeline: see `PRINCIPLES.md` (P1 to P9).
 From here on, decisions cite principles.
 
 ---
@@ -101,16 +101,16 @@ From here on, decisions cite principles.
 **Decisions in this version**
 | Decision | Choice | Decided by | Status |
 |---|---|---|---|
-| Citation granularity | paper + section | Sumukh | final |
-| Scope of overnight experiments | retrieval method + chunking | Sumukh | done |
-| Run every combination, report one-change-at-a-time + interactions | full grid | Claude, explained to Sumukh | done |
+| Citation granularity | paper + section | Divyanshi | final |
+| Scope of overnight experiments | retrieval method + chunking | Divyanshi | done |
+| Run every combination, report one-change-at-a-time + interactions | full grid | Claude, explained to Divyanshi | done |
 | Embedding / re-rank models | bge-small-en-v1.5 / ms-marco-MiniLM-L-6 via fastembed (torch install too heavy here) | Claude default | not reviewed |
 | Test questions for retrieval | written by Claude, 36 | Claude default | not reviewed |
-| Chunking + retrieval | section chunks + hybrid (BM25 + embeddings), no re-ranker | Sumukh | **final** (21:00, 13 Nov) |
-| Re-ranker | A: never in the live path | Sumukh | final. Reasoning: section + hybrid already beats every re-ranked config (25 vs best re-ranked 24), and re-ranking adds ~1.4 s per question |
-| Transcript fix | D: leave as is, document it. Rank 5 is good enough because embeddings compensate | Sumukh | final |
-| Unanswerable pre-filter (embedding score cutoff) | only when under load or low on budget | Sumukh | final. Reasoning: normally the LLM can explain that a question isn't answerable from the 3 papers; under load the screen saves valuable tokens. Cutoff value to be set from real data |
-| k under load | keep k=5, do NOT drop to 3 | Sumukh (**overruled** Claude's k=3 suggestion) | final. Reasoning: keep answer quality unless it is heavily compromised; degrade elsewhere instead |
+| Chunking + retrieval | section chunks + hybrid (BM25 + embeddings), no re-ranker | Divyanshi | **final** (21:00, 13 Nov) |
+| Re-ranker | A: never in the live path | Divyanshi | final. Reasoning: section + hybrid already beats every re-ranked config (25 vs best re-ranked 24), and re-ranking adds ~1.4 s per question |
+| Transcript fix | D: leave as is, document it. Rank 5 is good enough because embeddings compensate | Divyanshi | final |
+| Unanswerable pre-filter (embedding score cutoff) | only when under load or low on budget | Divyanshi | final. Reasoning: normally the LLM can explain that a question isn't answerable from the 3 papers; under load the screen saves valuable tokens. Cutoff value to be set from real data |
+| k under load | keep k=5, do NOT drop to 3 | Divyanshi (**overruled** Claude's k=3 suggestion) | final. Reasoning: keep answer quality unless it is heavily compromised; degrade elsewhere instead |
 
 ---
 
@@ -128,16 +128,16 @@ From here on, decisions cite principles.
 | Decision | Choice | Decided by | Status |
 |---|---|---|---|
 | Language | Python | Claude default | accepted |
-| Where we work | GitHub repo + Codespaces | Sumukh | final |
-| Repo visibility | Public, key only in Codespaces secret | Sumukh (Claude suggested private) | final |
+| Where we work | GitHub repo + Codespaces | Divyanshi | final |
+| Repo visibility | Public, key only in Codespaces secret | Divyanshi (Claude suggested private) | final |
 | Queue tech | In-memory, no Redis | Claude default | accepted |
 | PDF library | pypdf | Claude default | accepted |
 | Retrieval method | BM25 only | Claude default | **under review** |
 | Chunking | 200 words, 40 overlap, page-bound | Claude default | **under review** |
 | Citation granularity | paper + page | Claude default | **under review** |
 | Deep-dive topics | Claude cut my 6 down to 3 | Claude default | **under review** |
-| Header/transcript noise fix | A / B / C / D | Sumukh | pending (see E02) |
-| 429 principles | retry failed stage only, backoff + jitter, no retry when daily quota gone, never send unverified | Sumukh | principles agreed, numbers pending real measurements |
+| Header/transcript noise fix | A / B / C / D | Divyanshi | pending (see E02) |
+| 429 principles | retry failed stage only, backoff + jitter, no retry when daily quota gone, never send unverified | Divyanshi | principles agreed, numbers pending real measurements |
 
 **Things I caught / pushed back on**
 - (v0.2) Claude suggested dropping to k=3 under load. I kept k=5 to protect answer quality.

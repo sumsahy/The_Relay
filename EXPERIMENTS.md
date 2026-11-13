@@ -42,13 +42,13 @@ Raw outputs live in `results/raw/` and are never overwritten or deleted.
 
 # Overnight retrieval experiments (2026-11-13)
 
-Scope set by Sumukh: compare retrieval methods (BM25 / embeddings / re-ranking) and chunking options.
-Citation format chosen by Sumukh: paper + section.
+Scope set by Divyanshi: compare retrieval methods (BM25 / embeddings / re-ranking) and chunking options.
+Citation format chosen by Divyanshi: paper + section.
 **Hypotheses below were written and committed BEFORE any of these runs** (check the commit timestamps).
 
 Shared setup
 - Test set: `eval/retrieval_questions.json`, 36 questions written by Claude (30 answerable, 6 unanswerable).
-  Retrieval-only. Not the brief's 15 answer-quality questions, which Sumukh writes himself.
+  Retrieval-only. Not the brief's 15 answer-quality questions, which Divyanshi writes himself.
 - "Hit@k" = a chunk containing the gold evidence (regex, checked to exist in the PDF text) is in the top k.
 - No Groq calls. Measures whether the right passage *reaches* the model, not answer quality.
 - Embedding model: BAAI/bge-small-en-v1.5 (local, ONNX via fastembed). Re-ranker: ms-marco-MiniLM-L-6-v2 cross-encoder (local).
@@ -103,9 +103,9 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
 - **Measurement errors caught before publishing:** first report draft said the Moshi latency question fails in *all*
   BM25 configs (false: bigger chunks find it) and quoted section+hybrid as 26 (it is 25 clean / 26 raw). Both corrected
   after re-checking the raw CSV.
-- **Conclusion:** no code change to the main pipeline yet. Decisions are Sumukh's (see end of the report).
+- **Conclusion:** no code change to the main pipeline yet. Decisions are Divyanshi's (see end of the report).
 
-## E10: first real Groq call + first Codespace run  (2026-11-13, run by Sumukh)
+## E10: first real Groq call + first Codespace run  (2026-11-13, run by Divyanshi)
 - Question: does the key work, and what do the response and rate-limit headers actually look like?
 - Setup: `python scripts/hello_groq.py` (openai/gpt-oss-20b, max_tokens=200, prompt "Reply with exactly: hello relay").
 - Result: ok, TTFT 601 ms, total 607 ms, prompt 77 tokens, completion **44** tokens for a 2-word answer.
@@ -126,13 +126,13 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
 - Conclusion: pinned `pypdf==6.17.0` so code and experiments use identical text. Added `scripts/eval_retrieval.py`
   to confirm the Codespace reproduces 25/30. Hypotheses 2 and 3 to be tested in the limits probe (Table 1).
 
-## E11: Groq console limits for this account  (2026-11-13, screenshot by Sumukh)
+## E11: Groq console limits for this account  (2026-11-13, screenshot by Divyanshi)
 - Raw: `results/raw/groq_console_limits_2026-11-13.png`
 - gpt-oss-120b / gpt-oss-20b / qwen3.8-27b: 30 RPM, 1K RPD, 8K TPM, 200K TPD (matches Groq's docs page).
 - allam-2-7b: 30 RPM, 7K RPD, 6K TPM, 500K TPD (much larger daily token budget, smaller model).
 - Confirms the account-level numbers behind the pipeline token arithmetic. Tokens (per minute and per day) bind, not requests.
 
-## E12: first three real pipeline runs  (2026-11-13 23:52, run by Sumukh)
+## E12: first three real pipeline runs  (2026-11-13 23:52, run by Divyanshi)
 - Setup: `scripts/ask.py`, gpt-oss-20b, reasoning_effort=low, draft max_tokens 900, verify 400, run back to back (~30 s).
 - Q1 "What latency does Moshi achieve?": answered, 1 claim kept, 1,133 ms total. Tokens 3,187 in / 162 out.
   Draft call: 2,559 prompt tokens, TTFT 484 ms. Verify call: 628 prompt tokens.
@@ -161,17 +161,17 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
 - **E10 hypothesis 3 confirmed:** reset-requests = 5m45.6s with 4 requests used = 4 x 86.4 s. The daily request limit
   refills one request every 86.4 s, continuously. It is not a midnight reset.
 
-## E14: Table 1 probe  (2026-11-14 02:40, `scripts/probe_limits.py`, run by Sumukh)
+## E14: Table 1 probe  (2026-11-14 02:40, `scripts/probe_limits.py`, run by Divyanshi)
 - Raw: `results/raw/probe_limits.jsonl` (in the Codespace; to be pushed)
 - **In flight:** 10 requests at once, 10/10 ok. No in-flight limit hit at 10. Latency min 399 ms, max 1,458 ms:
   concurrency does slow calls down (slowest ~3.7x the fastest), feeding the stand-in's slowdown-per-call-in-flight.
 - **Requests per minute:** 429 on the 31st request, 13.8 s into back-to-back sending. Body: "requests per minute (RPM):
   Limit 30, Used 30, Requested 1. Please try again in 2s". `retry-after: 2`. Confirms RPM = 30 (high confidence).
 - **Recovery:** first retry after 2.9 s succeeded. Fits a continuously refilling bucket: 30/min = one request every 2 s.
-- Process note: Claude's earlier plan assumed quota would refill overnight; Sumukh pointed out we're finishing tonight,
+- Process note: Claude's earlier plan assumed quota would refill overnight; Divyanshi pointed out we're finishing tonight,
   so Table 3 was cut to fit one day (15 questions on the chosen setting, same 8 on the other two).
 
-## E15: first Table 3 run, INVALID: half the library was missing  (2026-11-14 ~02:50, run by Sumukh)
+## E15: first Table 3 run, INVALID: half the library was missing  (2026-11-14 ~02:50, run by Divyanshi)
 - What happened: all 45 runs completed (105,275 tokens, avg 2,339/run), but the index had **138 section chunks
   instead of ~280** (and 184 instead of ~399 for 200-word chunks), with dozens of "Error -3 while decompressing data"
   messages from pypdf. One PDF (very likely Moshi) failed to extract.
@@ -194,7 +194,7 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
   Newly missed: M1 (Moshi latency) just outside the top 5. Within noise.
 - Raw data kept (archived, not used for Table 3): its Groq call timings are still real and feed calibration.
 
-## E16: first load-test run, INVALID: the stand-in never started  (2026-11-14 ~02:51, run by Sumukh)
+## E16: first load-test run, INVALID: the stand-in never started  (2026-11-14 ~02:51, run by Divyanshi)
 - All 6 scenarios: **100% of requests "error"**, every one after exactly 2 retries (e.g. steady 32/32, overload 130/130).
 - Cause: the stand-in needs `aiohttp` (added to requirements.txt, but not yet installed in the Codespace), so its process
   died at start. `load_test.py` waited ~10 s for it, **gave up silently and ran anyway**, so every call hit a closed port.
@@ -205,7 +205,7 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
   not a result.
 - Raw rows archived, not used.
 
-## E17: Table 3 rerun, valid  (2026-11-14 03:34, run by Sumukh, pypdf 7.0.1, 286 chunks, moshi md5 OK)
+## E17: Table 3 rerun, valid  (2026-11-14 03:34, run by Divyanshi, pypdf 7.0.1, 286 chunks, moshi md5 OK)
 - 27 runs, all status ok. Moshi questions (Q03-Q05) now answered (E15 refused all of them).
 - **Slow request (section 4 candidate): section-300-k5-Q05, 9,110 ms total = 1,797 ms working + 7,312 ms waiting to retry.**
   Two per-minute 429s (draft, then verify): "Used 5796, Requested 2488" and "Used 7893, Requested 511". All of the delay
@@ -214,11 +214,11 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
 - **Q10 (encoder vs decoder) wrongly refused** ("refused_unverifiable"). Both drafts quoted Transformer §3.1 correctly but
   **stitched two separate sentences with "..."**. Our quote check needs one contiguous string, so both failed.
   The answer was right; the check was too literal. Candidate fix: split quotes on "..." and require every fragment
-  to appear verbatim. Decision pending (Sumukh).
+  to appear verbatim. Decision pending (Divyanshi).
 - Q05 attempt 0 also failed the quote check, for a different and legitimate reason: it silently dropped a middle sentence.
   The redraft quoted verbatim and passed.
 
-## E18: load scenarios, first working run (uncalibrated latency defaults, scale 10)  (2026-11-14 03:24, Sumukh)
+## E18: load scenarios, first working run (uncalibrated latency defaults, scale 10)  (2026-11-14 03:24, Divyanshi)
 - steady 32/32 answered (1 retry). halved 28/28 answered, **the limiter detected the halved limit from the headers** (1 change).
 - burst (96 in 10 s): 52 answered, 4 pre-filtered, 40 gave up (**34 while queued, spending nothing**; 6 mid-work), peak queue 64, 3 retries.
 - **burst_naive** (same burst, no limiter/queue): 29 answered, **66 rate-limited, 142 retries**. Retry storm reproduced (cf. v0.5 test).
@@ -228,7 +228,7 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
 - **daily: didn't exhaust** (60 requests left was enough for 24 arrivals). Redesigned: start with ~60K tokens left.
 - Not used for tables: latency was uncalibrated, and overload/daily were wrong. Rerun after calibration.
 
-## E19: stand-in calibration from real Groq calls  (2026-11-14 03:48, Sumukh)
+## E19: stand-in calibration from real Groq calls  (2026-11-14 03:48, Divyanshi)
 - 114 real Groq calls (E12, E15 timings, E17) + the probe. Real TTFT p50 **499 ms**, p95 **681 ms**.
 - Fitted: base TTFT median 446 ms (lognormal sigma 0.31) + 39 ms per 1K prompt tokens; visible output ~1,367 tokens/s;
   **+12.8% latency per extra call in flight** (from the probe: 10 at once vs one at a time).

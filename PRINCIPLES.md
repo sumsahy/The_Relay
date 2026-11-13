@@ -1,11 +1,11 @@
 # Principles: the experience we want to give the user
 
-Written by Sumukh, 2026-11-13, before deciding the pipeline. Every design decision in CHANGELOG.md should
+Written by Divyanshi, 2026-11-13, before deciding the pipeline. Every design decision in CHANGELOG.md should
 point to a principle. If a decision turns out wrong, these say which way to correct it.
 
 **The user:** an engineer asking questions about three research papers.
 
-| # | Principle (Sumukh's words) | What it means for the system |
+| # | Principle (Divyanshi's words) | What it means for the system |
 |---|---|---|
 | P1 | A wrong answer is worse than a slow one. | Never send an unverified or unsupported claim. When in doubt, refuse or wait. |
 | P2 | Correctness > availability > speed = cost. | The order we give things up in when we can't have everything. |
