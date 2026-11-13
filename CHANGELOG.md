@@ -8,6 +8,13 @@ Git commits hold the code; this file holds the reasoning.
 
 ---
 
+## Grading decisions  (2026-11-14 03:46)
+| Decision | Choice | Decided by | Status |
+|---|---|---|---|
+| Q10 wrongly refused (stitched "..." quotes failed the quote check, E17) | **leave the system as is**, grade `refused_wrongly`, document the flaw | Sumukh (Claude offered a fix + rerun) | final |
+
+---
+
 ## v0.5: stand-in, queue, rate limiter, load scenarios  (2026-11-14, ~03:00)
 
 **What exists**
