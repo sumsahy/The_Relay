@@ -160,7 +160,7 @@ internally. Getting this right could also reduce the stigma that makes many peop
 
 ## How I worked with the assistant
 
-Full, unedited history in `conversation/`: my planning chat with ChatGPT, then the Claude conversation that built this.
+Full, unedited history in `conversation/`: my planning chat with ChatGPT, then the Claude conversation that built this. I used a friend's Claude Pro subscription, GitHub account and Codespace to build this, so the commits and the assistant conversation come from those accounts. All prompts, decisions, questions and grading are mine. The Groq account and API key used for every real run are my own.
 
 **The three prompts that mattered most.** (1) *"Let's first get our principles right, what kind of experience do we
 want to give our user"*, before choosing the pipeline: every later decision cites a principle. (2) *"Have we already
