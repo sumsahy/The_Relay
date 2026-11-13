@@ -131,3 +131,19 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
 - gpt-oss-120b / gpt-oss-20b / qwen3.8-27b: 30 RPM, 1K RPD, 8K TPM, 200K TPD (matches Groq's docs page).
 - allam-2-7b: 30 RPM, 7K RPD, 6K TPM, 500K TPD (much larger daily token budget, smaller model).
 - Confirms the account-level numbers behind the pipeline token arithmetic. Tokens (per minute and per day) bind, not requests.
+
+## E12: first three real pipeline runs  (2026-11-13 23:52, run by Sumukh)
+- Setup: `scripts/ask.py`, gpt-oss-20b, reasoning_effort=low, draft max_tokens 900, verify 400, run back to back (~30 s).
+- Q1 "What latency does Moshi achieve?": answered, 1 claim kept, 1,133 ms total. Tokens 3,187 in / 162 out.
+  Draft call: 2,559 prompt tokens, TTFT 484 ms. Verify call: 628 prompt tokens.
+- Q2 (the brief's cross-paper example): **reduced answer, 2 claims kept (both Transformer), 2 dropped**, 1,888 ms.
+  Tokens 4,323 in / 554 out. The kept answer covers only one side of the comparison.
+- Q3 "GPT-4 parameters": **HTTP 429 on the first call, after 93 ms.** Remaining tokens/min before it was ~1,538.
+  User saw the "busy" message (max_retries is 0).
+- Surprise: **three questions in ~30 seconds hit the per-minute token limit.** One impatient user can do this.
+- Token accounting from the headers (8,000/min refills at ~133 tokens/s):
+  remaining dropped by ~the *prompt* size when a call started, and by the *output* size after it finished.
+  Q3's draft needed ~2,400 prompt tokens with ~2,800 left after refill, yet was refused. That fits
+  "Groq checks prompt + max_tokens (900) before admitting", i.e. E10 hypothesis 2, but deducts what is actually used.
+  **Still unconfirmed**: needs the 429 error body and a controlled probe (same prompt, different max_tokens).
+- Bug found: `ask.py` crashed printing a failed step (KeyError 'ms'). Fixed.

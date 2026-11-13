@@ -41,7 +41,7 @@ async def main() -> None:
           f"total {res.total_ms:.0f} ms | in LLM/tools {res.work_ms:.0f} ms | retrying {res.retry_ms:.0f} ms")
     print(f"tokens in={res.tokens_in} out={res.tokens_out} | retries={res.retries}")
     for s in res.steps:
-        print(f"  step {s['step']:<14} {s['ms']:>8} ms")
+        print(f"  step {s['step']:<14} " + (f"{s['ms']:>8} ms" if "ms" in s else s.get("detail", "")))
     for c in res.calls:
         h = c["headers"]
         print(f"  call {c['step']:<7} ok={c['ok']} ttft={c['ttft_ms']} total={c['total_ms']} "
