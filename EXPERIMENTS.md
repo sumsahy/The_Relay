@@ -125,3 +125,9 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
   Codespace vs 6.17.0 where the experiments ran: different text extraction. The Moshi latency top 5 also differed.
 - Conclusion: pinned `pypdf==6.17.0` so code and experiments use identical text. Added `scripts/eval_retrieval.py`
   to confirm the Codespace reproduces 25/30. Hypotheses 2 and 3 to be tested in the limits probe (Table 1).
+
+## E11: Groq console limits for this account  (2026-11-13, screenshot by Sumukh)
+- Raw: `results/raw/groq_console_limits_2026-11-13.png`
+- gpt-oss-120b / gpt-oss-20b / qwen3.8-27b: 30 RPM, 1K RPD, 8K TPM, 200K TPD (matches Groq's docs page).
+- allam-2-7b: 30 RPM, 7K RPD, 6K TPM, 500K TPD (much larger daily token budget, smaller model).
+- Confirms the account-level numbers behind the pipeline token arithmetic. Tokens (per minute and per day) bind, not requests.
