@@ -89,7 +89,7 @@ async def run(name: str, scale: float, retriever: Retriever, out_csv: Path, port
                 qs = QUESTIONS[i % len(QUESTIONS)]
                 patience = random.lognormvariate(__import__("math").log(PATIENCE_MEDIAN_S), PATIENCE_SIGMA)
                 res = await svc.submit(qs, f"{name}-{i:04d}", patience)
-                log_result(res, name, url, results_csv=out_csv)
+                log_result(res, name, url, results_csv=out_csv, detail_jsonl=STANDIN_JSONL)
                 return res
 
             results = await asyncio.gather(*(person(i, at) for i, at in enumerate(times)))
@@ -106,13 +106,16 @@ async def run(name: str, scale: float, retriever: Retriever, out_csv: Path, port
 
 
 QUESTIONS: list[str] = []
+# Stand-in runs go to their own files, so they never collide with real runs being written at the same time.
+STANDIN_CSV = ROOT / "results" / "raw" / "results_standin.csv"
+STANDIN_JSONL = ROOT / "results" / "raw" / "requests_standin.jsonl"
 
 
 async def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("scenarios", nargs="*", default=list(SCENARIOS))
     p.add_argument("--scale", type=float, default=10.0)
-    p.add_argument("--out", default=str(ROOT / "results.csv"))
+    p.add_argument("--out", default=str(STANDIN_CSV), help="merged into results.csv by scripts/build_results.py")
     p.add_argument("--seed", type=int, default=7)
     a = p.parse_args()
     random.seed(a.seed)

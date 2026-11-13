@@ -26,8 +26,9 @@ COLUMNS = ["request_id", "scenario", "source", "start_time", "first_token_ms", "
 
 
 def log_result(res: RequestResult, scenario: str, url: str, answer_grade: str = "",
-               results_csv: Path | None = None) -> None:
+               results_csv: Path | None = None, detail_jsonl: Path | None = None) -> None:
     out_csv = results_csv or RESULTS_CSV
+    out_jsonl = detail_jsonl or DETAIL_JSONL
     source = "real" if url == GROQ_URL else "stand-in"
     row = {
         "request_id": res.request_id,
@@ -55,8 +56,8 @@ def log_result(res: RequestResult, scenario: str, url: str, answer_grade: str = 
         if new:
             w.writeheader()
         w.writerow(row)
-    DETAIL_JSONL.parent.mkdir(parents=True, exist_ok=True)
-    with open(DETAIL_JSONL, "a") as f:
+    out_jsonl.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_jsonl, "a") as f:
         detail = to_dict(res)
         for c in detail.get("claims", []):
             c.pop("chunk", None)
