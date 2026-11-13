@@ -31,6 +31,10 @@ SETTINGS = {
     "w200/k5/bm25/no-rerank": dict(chunking="w200", method="bm25", k=5),       # naive baseline
     "section-300/k3/hybrid/no-rerank": dict(chunking="section", method="hybrid", k=3),  # cheaper
 }
+# Budget plan (2026-11-14 02:35): one day's ~180K tokens left, so the chosen setting gets all questions and the
+# other two get the same subset. Comparing settings on the same 8 is still like-for-like.
+CHOSEN = "section-300/k5/hybrid/no-rerank"
+SUBSET = ["Q01", "Q06", "Q08", "Q09", "Q12", "Q13", "Q14", "Q15"]
 NEED_TOKENS = 4500          # wait until the per-minute bucket has about this much room
 REFILL_PER_S = 8000 / 60    # E12: 8K TPM refills continuously
 GRADING = ROOT / "results" / "quality_grading.csv"
@@ -56,8 +60,11 @@ async def main() -> None:
     if not qs:
         sys.exit("Add your questions to eval/quality_questions.json first (the EXAMPLE ones are skipped).")
     done = done_pairs()
-    todo = [(s, q) for s in SETTINGS for q in qs if f"{s.split('/')[0]}-{s.split('/')[1]}-{q['id']}" not in done]
-    print(f"{len(qs)} questions x {len(SETTINGS)} settings = {len(qs) * len(SETTINGS)} runs; "
+    todo = [(s, q) for s in SETTINGS for q in qs
+            if (s == CHOSEN or q["id"] in SUBSET)
+            and f"{s.split('/')[0]}-{s.split('/')[1]}-{q['id']}" not in done]
+    total = len(qs) + len(SUBSET) * (len(SETTINGS) - 1)
+    print(f"{len(qs)} questions on the chosen setting + {len(SUBSET)} on each other setting = {total} runs; "
           f"{len(todo)} to do; estimated ~{len(todo) * 4.5:.0f}K tokens (daily limit 200K)")
     if a.dry_run:
         return
