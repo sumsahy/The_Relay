@@ -191,3 +191,14 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
 - Re-baseline with pypdf 7.0.1 (retrieval test set, no Groq): **286 chunks, hit@5 = 24/30** (6.17 baseline: 280, 25/30).
   Newly missed: M1 (Moshi latency) just outside the top 5. Within noise.
 - Raw data kept (archived, not used for Table 3): its Groq call timings are still real and feed calibration.
+
+## E16: first load-test run, INVALID: the stand-in never started  (2026-11-14 ~02:51, run by Sumukh)
+- All 6 scenarios: **100% of requests "error"**, every one after exactly 2 retries (e.g. steady 32/32, overload 130/130).
+- Cause: the stand-in needs `aiohttp` (added to requirements.txt, but not yet installed in the Codespace), so its process
+  died at start. `load_test.py` waited ~10 s for it, **gave up silently and ran anyway**, so every call hit a closed port.
+  Also ran on the replaced moshi.pdf (E15).
+- Fix: load_test now stops with the stand-in's own log if it doesn't come up. Stand-in output goes to
+  `results/raw/standin_<scenario>.log`.
+- Lesson (same as E15): check that each piece is really up before trusting a run; a 100% error rate is a setup bug,
+  not a result.
+- Raw rows archived, not used.

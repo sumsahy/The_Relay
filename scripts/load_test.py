@@ -59,8 +59,9 @@ SCENARIOS = {
 async def run(name: str, scale: float, retriever: Retriever, out_csv: Path, port: int) -> dict:
     flags, use_limiter, retries, duration = SCENARIOS[name]
     flags = [f.format(s=scale, h=scale / 2) for f in flags]
+    log_path = ROOT / "results" / "raw" / f"standin_{name}.log"
     proc = subprocess.Popen([sys.executable, str(ROOT / "standin" / "server.py"), "--port", str(port), *flags],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            stdout=open(log_path, "w"), stderr=subprocess.STDOUT)
     url = f"http://127.0.0.1:{port}/openai/v1/chat/completions"
     try:
         async with httpx.AsyncClient(limits=httpx.Limits(max_connections=200)) as client:
@@ -70,6 +71,10 @@ async def run(name: str, scale: float, retriever: Retriever, out_csv: Path, port
                         break
                 except httpx.HTTPError:
                     await asyncio.sleep(0.2)
+            else:
+                # E16: the stand-in once failed to start (aiohttp missing) and the run carried on, logging
+                # 100% errors. Never again: stop loudly and show why.
+                raise SystemExit(f"stand-in did not start on port {port}. Its log:\n{log_path.read_text()[-2000:]}")
             pcfg = Config(url=url, retrieval_setting="section-300/k5/hybrid/no-rerank",
                           retry=RetryPolicy() if retries else RetryPolicy(max_retries=0))
             # our limiter knows the ACCOUNT limits we measured (x scale); it is not told about "halved"
