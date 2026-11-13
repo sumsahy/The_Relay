@@ -36,10 +36,12 @@ from relay.retrieval import Chunk, Retriever
 class RetryPolicy:
     """PENDING: numbers to be set from the limits probe (Table 1). Principles agreed:
     retry only the failed step, bounded, backoff + jitter, honour retry-after, never retry a daily limit."""
-    max_retries: int = 0
-    base_s: float = 1.0
+    max_retries: int = 2                 # per step, per-minute 429s / timeouts / 5xx only (decided 2026-11-14)
+    base_s: float = 1.0                  # backoff when the provider gives no retry-after
     cap_s: float = 20.0
-    honour_retry_after: bool = True
+    honour_retry_after: bool = True      # wait what Groq says (E13: "retry-after: 6")
+    jitter_s: float = 1.0                # + uniform(0, jitter_s) so retries don't arrive in sync
+    max_total_wait_s: float = 30.0       # per request, then the honest "busy" message
 
 
 @dataclass
@@ -51,7 +53,9 @@ class Config:
     under_load: bool = False
     prefilter_cutoff: float = 0.65       # conservative (T2); lowest answerable question scored 0.714
     reasoning_effort: str = "low"        # Claude default, to measure
-    draft_max_tokens: int = 900
+    draft_max_tokens: int = 500          # E13: drafts used 83-270; 900 wasted ~630 tokens of TPM reservation
+    draft_max_tokens_cross: int = 700    # cross-paper answers have more claims
+    draft_max_tokens_retry: int = 1000   # leeway: only a draft that was cut off pays for more
     verify_max_tokens: int = 400
     call_timeout_s: float = 30.0
     retry: RetryPolicy = field(default_factory=RetryPolicy)
@@ -62,6 +66,9 @@ PAPER_NAMES = {
     "moshi": ["moshi", "mimi", "helium", "kyutai"],
     "dynchunk": ["dynamic chunking", "h-net", "hnet", "chunking paper"],
 }
+
+PAPER_LABELS = {"attention": "Transformer (Attention Is All You Need)", "moshi": "Moshi",
+                "dynchunk": "Dynamic Chunking"}
 
 # ------------------------------------------------------------------ result record
 
@@ -90,6 +97,8 @@ class RequestResult:
     claims_kept: int = 0
     claims_dropped: int = 0
     redrafted: bool = False
+    second_retrieval: list = field(default_factory=list)   # papers we went back for (decision A)
+    hit_max_tokens: int = 0                                # calls cut off by max_tokens (decision B)
     t_start: float = 0.0                 # wall clock, set when the pipeline starts working on it
     queue_wait_ms: float = 0.0           # filled in by the queue layer
     progress_ms: float | None = None     # first progress message shown
@@ -226,10 +235,19 @@ class Pipeline:
                                 "llm_ok": c.llm_ok, "reason": c.reason} for c in claims]
                 kept = [c for c in claims if c.code_ok and c.llm_ok]
                 failed = [c for c in claims if not (c.code_ok and c.llm_ok)]
+                not_covered = []
+                if kept and len(res.papers) > 1:
+                    missing = [p for p in res.papers if not any(c.chunk.paper == p for c in kept)]
+                    for paper in missing:
+                        extra_kept, extra_failed = await self._second_retrieval(res, question, paper, progress)
+                        kept += extra_kept
+                        failed += extra_failed
+                        if not extra_kept:
+                            not_covered.append(paper)
                 if kept:
                     res.claims_kept, res.claims_dropped = len(kept), len(failed)
                     res.outcome = "answered_reduced" if failed else "answered"
-                    res.answer = self._compose(kept, failed)
+                    res.answer = self._compose(kept, failed, not_covered)
                     return self._finish(res, ms, progress)
                 res.redrafted = attempt == 0
                 feedback = "These claims failed verification, do not repeat them: " + \
@@ -246,12 +264,15 @@ class Pipeline:
 
     # -------------------------------------------------------------- steps
 
-    async def _draft(self, res, question, chunks, feedback) -> dict | None:
+    async def _draft(self, res, question, chunks, feedback, focus: str = "") -> dict | None:
         user = f"Passages:\n\n{_passages(chunks)}\n\nQuestion: {question}"
+        if focus:
+            user += f"\n\nAnswer ONLY the part of the question about the {focus}, using only these passages."
         if feedback:
             user += f"\n\nNote: {feedback}"
+        budget = self.cfg.draft_max_tokens_cross if len(res.papers) > 1 and not focus else self.cfg.draft_max_tokens
         r = await self._call(res, "draft", [{"role": "system", "content": DRAFT_SYSTEM},
-                                            {"role": "user", "content": user}], self.cfg.draft_max_tokens)
+                                            {"role": "user", "content": user}], budget)
         return _parse_json(r.text)
 
     def _claims(self, draft: dict, chunks: list[Chunk]) -> list[Claim]:
@@ -293,8 +314,32 @@ class Pipeline:
             if not c.llm_ok:
                 c.reason = (v or {}).get("reason", "verifier gave no verdict")
 
-    def _compose(self, kept: list[Claim], failed: list[Claim]) -> str:
+    async def _second_retrieval(self, res, question, paper, progress):
+        """Decision A (2026-11-14): a named paper has no verified claim -> fetch from that paper only and draft
+        just its part, once. If nothing verifies, the answer says so explicitly (not a forced claim: P1)."""
+        progress(f"Looking again in the {PAPER_LABELS[paper]} paper...")
+        res.second_retrieval.append(paper)
+        ts = time.perf_counter()
+        chunks = [c for c, _ in self.r.search(question, k=3, papers=[paper])]
+        res.steps.append({"step": "retrieve_2nd", "ms": round((time.perf_counter() - ts) * 1000, 1),
+                          "paper": paper, "cites": [c.cite for c in chunks]})
+        draft = await self._draft(res, question, chunks, "", focus=f"{PAPER_LABELS[paper]} paper")
+        if not draft or not draft.get("answerable"):
+            return [], []
+        claims = self._claims(draft, chunks)
+        self._verify_quotes(res, claims)
+        await self._verify_llm(res, [c for c in claims if c.code_ok])
+        res.claims += [{"attempt": "2nd:" + paper, "text": c.text, "source": c.source, "quote": c.quote,
+                        "cite": c.chunk.cite if c.chunk else None, "code_ok": c.code_ok,
+                        "llm_ok": c.llm_ok, "reason": c.reason} for c in claims]
+        return ([c for c in claims if c.code_ok and c.llm_ok],
+                [c for c in claims if not (c.code_ok and c.llm_ok)])
+
+    def _compose(self, kept: list[Claim], failed: list[Claim], not_covered: list[str] = ()) -> str:
         lines = [f"{c.text} {c.chunk.cite}" for c in kept]
+        for p in not_covered:
+            lines.append(f"The passages I found in the {PAPER_LABELS[p]} paper don't directly address this, "
+                         f"so I can't make a verified claim about that part.")
         if failed:
             lines.append(f"\n(Reduced answer: {len(failed)} claim(s) removed because they couldn't be verified against the papers.)")
         return "\n".join(lines)
@@ -324,6 +369,12 @@ class Pipeline:
                               "ttft_ms": r.ttft_ms and round(r.ttft_ms, 1), "total_ms": round(r.total_ms, 1),
                               "prompt_tokens": r.prompt_tokens, "completion_tokens": r.completion_tokens,
                               "headers": r.headers, "error_body": r.error_body[:300]})
+            if r.ok and r.finish_reason == "length":
+                res.hit_max_tokens += 1
+                res.calls[-1]["hit_max_tokens"] = True
+                if step == "draft" and max_tokens < self.cfg.draft_max_tokens_retry:
+                    max_tokens = self.cfg.draft_max_tokens_retry      # only this request pays for more
+                    continue
             if r.ok:
                 return r
             retryable = r.error in ("rate_limit_minute", "timeout") or r.error.startswith(("http_5", "network"))
@@ -331,9 +382,14 @@ class Pipeline:
                 status = ("rate_limited" if r.error.startswith("rate_limit")
                           else "timeout" if r.error == "timeout" else "error")
                 raise StepFailed(status, f"{step} failed: {r.error}")
-            wait = min(pol.cap_s, pol.base_s * 2 ** attempt) * random.uniform(0.5, 1.5)   # backoff + jitter
             if pol.honour_retry_after and r.headers.get("retry-after"):
-                wait = max(wait, float(r.headers["retry-after"]))
+                wait = float(r.headers["retry-after"]) + random.uniform(0, pol.jitter_s)
+            else:
+                wait = min(pol.cap_s, pol.base_s * 2 ** attempt) * random.uniform(0.5, 1.5)   # backoff + jitter
+            if (res.retry_ms / 1000) + wait > pol.max_total_wait_s:
+                raise StepFailed("rate_limited" if r.error.startswith("rate_limit") else
+                                 "timeout" if r.error == "timeout" else "error",
+                                 f"{step} failed: {r.error}")
             t_wait = time.perf_counter()
             await asyncio.sleep(wait)
             res.retry_ms += (time.perf_counter() - t_wait) * 1000

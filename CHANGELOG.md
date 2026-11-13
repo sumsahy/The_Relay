@@ -8,6 +8,21 @@ Git commits hold the code; this file holds the reasoning.
 
 ---
 
+## v0.4: cross-paper completeness, token budgets, retry policy, Table 3 runner  (2026-11-14, ~01:30)
+
+| Decision | Choice | Decided by | Principle | Status |
+|---|---|---|---|---|
+| Cross-paper answer missing a paper (E13) | **enforce** a targeted second retrieval from that paper + draft only its part, once. If nothing verifies, say so explicitly | Sumukh (overruled Claude's "message only" lean). Claude added: enforce the *attempt*, not a claim | P1, P7 | final |
+| Draft max_tokens | 500 (700 for cross-paper). If a draft is cut off, retry that call once at 1,000: only that request pays | Sumukh: 500 + "leeway for that request". Mechanism: Claude | P6, P9 | final |
+| Log calls that hit max_tokens | yes (`hit_max_tokens` per request and per call) | Sumukh | | final |
+| Retry policy | per-minute 429: wait retry-after + up to 1 s jitter, max 2 retries per step, max 30 s total wait per request. Daily 429: never | Sumukh (accepted Claude's proposal) | P5, P7 | final |
+| Table 3 settings | w200/k5/bm25 (naive), section/k5/hybrid (chosen), section/k3/hybrid (cheaper) | Claude default | | **not reviewed** |
+| Table 3 runner | paced by Groq's own token headers, resumable, stops cleanly at the daily limit | Claude default | P6 | not reviewed |
+
+Tests: 13 offline cases pass, incl. both cross-paper outcomes, truncation leeway, retry cap.
+
+---
+
 ## v0.3: the pipeline  (2026-11-14, ~00:30)
 
 **What exists**

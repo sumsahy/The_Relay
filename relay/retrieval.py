@@ -88,7 +88,8 @@ class Chunk:
         return f"[{self.paper} §{self.section_id} p.{self.page}]"
 
 
-def build_chunks(paper_dir: Path = PAPER_DIR) -> list[Chunk]:
+def build_chunks(paper_dir: Path = PAPER_DIR, chunking: str = "section") -> list[Chunk]:
+    """chunking: "section" (production) or "w200" (200-word page-bound windows, the naive baseline for Table 3)."""
     chunks: list[Chunk] = []
     pdfs = sorted(paper_dir.glob("*.pdf"))
     if not pdfs:
@@ -106,6 +107,17 @@ def build_chunks(paper_dir: Path = PAPER_DIR) -> list[Chunk]:
                 if h:
                     section, seen_refs = h, seen_refs or h == "References"
                 words += [(w, page_no, section) for w in line.split()]
+        if chunking == "w200":
+            by_page: dict[int, list] = {}
+            for w in words:
+                by_page.setdefault(w[1], []).append(w)
+            for page_no, ws in by_page.items():
+                for s0 in range(0, len(ws), 160):
+                    piece = ws[s0:s0 + 200]
+                    if len(piece) < 20 and s0 > 0:
+                        break
+                    chunks.append(Chunk(pdf.stem, piece[0][2], page_no, " ".join(w for w, _, _ in piece)))
+            continue
         # group consecutive words by section, then cap long sections into windows
         start = 0
         while start < len(words):
@@ -129,10 +141,11 @@ def _tok(text: str) -> list[str]:
 
 
 class Retriever:
-    def __init__(self, chunks: list[Chunk] | None = None):
+    def __init__(self, chunks: list[Chunk] | None = None, chunking: str = "section", method: str = "hybrid"):
         from fastembed import TextEmbedding
 
-        self.chunks = chunks or build_chunks()
+        self.method = method
+        self.chunks = chunks or build_chunks(chunking=chunking)
         self.bm25 = BM25Okapi([_tok(c.text) for c in self.chunks])
         self.embedder = TextEmbedding(EMBED_MODEL)
         self.vecs = self._load_or_embed()
@@ -162,10 +175,10 @@ class Retriever:
         gets at least k // len(papers) chunks (fixes "one paper hogs the results", X1).
         """
         bm25 = self.bm25.get_scores(_tok(query))
-        dense = self._dense_scores(query)
+        dense = self._dense_scores(query) if self.method == "hybrid" else None
         allowed = None if not papers else {i for i, c in enumerate(self.chunks) if c.paper in papers}
         fused: dict[int, float] = {}
-        for scores in (bm25, dense):
+        for scores in ([bm25, dense] if dense is not None else [bm25]):
             order = [int(i) for i in np.argsort(-scores) if allowed is None or int(i) in allowed]
             for rank, i in enumerate(order[:RRF_DEPTH], start=1):
                 fused[i] = fused.get(i, 0.0) + 1.0 / (RRF_K + rank)

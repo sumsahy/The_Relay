@@ -44,6 +44,7 @@ class CallResult:
     total_ms: float = 0.0
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
+    finish_reason: str | None = None   # "length" = hit max_tokens (answer cut off)
     headers: dict = field(default_factory=dict)
 
 
@@ -92,6 +93,8 @@ async def chat(client: httpx.AsyncClient, model: str, messages: list[dict],
                     break
                 event = json.loads(data)
                 for choice in event.get("choices", []):
+                    if choice.get("finish_reason"):
+                        res.finish_reason = choice["finish_reason"]
                     piece = (choice.get("delta") or {}).get("content")
                     if piece:
                         if res.ttft_ms is None:

@@ -1,0 +1,9 @@
+{
+  "_note": "Sumukh's own questions for answer quality (brief: at least 15). For each: the question, whether the papers answer it, and where/what the right answer is, so grading is fair. Replace the two examples.",
+  "questions": [
+    {"id": "Q01", "q": "EXAMPLE: What latency does Moshi achieve?", "answerable": true,
+     "expected": "160 ms theoretical, 200 ms in practice (Moshi abstract / intro)"},
+    {"id": "Q02", "q": "EXAMPLE: How many parameters does GPT-4 have?", "answerable": false,
+     "expected": "Not in the papers: must refuse"}
+  ]
+}
