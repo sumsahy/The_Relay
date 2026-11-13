@@ -26,9 +26,10 @@ Git commits hold the code; this file holds the reasoning.
 | Embedding / re-rank models | bge-small-en-v1.5 / ms-marco-MiniLM-L-6 via fastembed (torch install too heavy here) | Claude default | not reviewed |
 | Test questions for retrieval | written by Claude, 36 | Claude default | not reviewed |
 | Chunking + retrieval | section chunks + hybrid (BM25 + embeddings), no re-ranker | Sumukh | **final** (21:00, 13 Nov) |
-| Re-ranker | A: never in the live path | Sumukh | final (reasoning: _to add_) |
+| Re-ranker | A: never in the live path | Sumukh | final. Reasoning: section + hybrid already beats every re-ranked config (25 vs best re-ranked 24), and re-ranking adds ~1.4 s per question |
 | Transcript fix | D: leave as is, document it. Rank 5 is good enough because embeddings compensate | Sumukh | final |
-| Unanswerable pre-filter (embedding score cutoff) | only when under load or low on budget | Sumukh | final (reasoning: _to add_; cutoff value to set from real data) |
+| Unanswerable pre-filter (embedding score cutoff) | only when under load or low on budget | Sumukh | final. Reasoning: normally the LLM can explain that a question isn't answerable from the 3 papers; under load the screen saves valuable tokens. Cutoff value to be set from real data |
+| k under load | keep k=5, do NOT drop to 3 | Sumukh (**overruled** Claude's k=3 suggestion) | final. Reasoning: keep answer quality unless it is heavily compromised; degrade elsewhere instead |
 
 ---
 
@@ -58,5 +59,6 @@ Git commits hold the code; this file holds the reasoning.
 | 429 principles | retry failed stage only, backoff + jitter, no retry when daily quota gone, never send unverified | Sumukh | principles agreed, numbers pending real measurements |
 
 **Things I caught / pushed back on**
+- (v0.2) Claude suggested dropping to k=3 under load. I kept k=5 to protect answer quality.
 - Asked whether the 429 policy was actually final. It wasn't: Claude had logged it as "agreed". Corrected to principles only.
 - Asked Claude to list every decision it had made without me. It had made 8, including cutting my deep-dive topics.
