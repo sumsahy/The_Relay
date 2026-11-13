@@ -1,0 +1,914 @@
+first let's talk about it and brainstrom before taking any decisions to build. also check my knowledge of things that i will need to work with you on this project.
+
+Worked for 18s
+Absolutely. I think we should approach The Relay as an engineering problem that we solve together, rather than immediately asking an AI assistant to generate a working repository.
+
+There are two things I want to achieve before we write any code:
+
+Make sure we understand the problem well enough to make our own engineering decisions.
+
+Identify which concepts you already understand, which ones need revision, and which ones we'll need to learn along the way.
+
+I have gone through all four pages of the assignment.
+
+1. What are we actually building?
+At its core, we're building a research-paper assistant that continues to behave reliably when many people use it simultaneously.
+
+Imagine an engineer asks:
+
+How does the Transformer architecture handle long-range dependencies, and how does that compare with the approach in the Dynamic Chunking paper?
+
+Our assistant needs to:
+
+Understand the question.
+
+Retrieve relevant passages from the three research papers.
+
+Decide whether additional retrieval or another operation is necessary.
+
+Generate an answer supported by the retrieved passages.
+
+Attach accurate citations.
+
+Verify that the answer doesn't claim something unsupported.
+
+Return the answer to the user.
+
+That's the functional part.
+
+Now imagine 100 engineers send questions almost simultaneously.
+
+Things start getting interesting:
+
+The model provider has request and token limits.
+
+Some requests require two model calls; others require six or more.
+
+Some requests take much longer than others.
+
+Tools may time out.
+
+Retrying failed requests can make congestion worse.
+
+Users may abandon requests while waiting.
+
+The provider's daily quota might run out entirely.
+
+The assignment is primarily asking us to solve this second problem without sacrificing answer correctness.
+
+The brief explicitly says that speed, quality, cost and availability cannot all be maximised simultaneously. We have to decide which trade-offs are acceptable and defend them with measurements. (Page 1.) 
+The_Relay_Assignment_Brief.pdf
+
+2. Breaking the project into engineering problems
+I see six interconnected areas.
+
+01
+LLM pipeline and orchestration
+
+How do we structure multiple model calls into a coherent workflow?
+
+User question
+Understand and classify
+Retrieve paper passages
+Plan / use tools / retrieve again
+Generate cited response
+Verify and return
+Illustrative pipeline, not a design decision. The assignment requires at least four steps, one tool call, and a branch or loop.
+
+02
+Retrieval and RAG
+
+How do we split three papers into searchable pieces? How many passages should we retrieve? Should we rerank them? How do we prevent irrelevant passages from producing convincing but incorrect answers?
+
+03
+Concurrency and rate limiting
+
+What happens when hundreds of users arrive together? How do we manage queues, simultaneous requests, RPM, TPM and daily quotas?
+
+04
+Latency, retries and streaming
+
+How do we reduce waiting time? When should we retry? How do we distinguish time to first token from total response time?
+
+05
+Stand-in model service
+
+We need our own simulated model service that can be slow, fail, rate-limit, become slower under load and stream responses. Its behaviour should be calibrated against our real Groq measurements.
+
+06
+Experimentation and evaluation
+
+We need repeatable load tests, request-level logs, answer-quality assessments, and evidence to justify every important engineering decision.
+
+The last point is particularly important: this isn't just a project where a working application is sufficient. The reviewers will recompute your results from results.csv. Our measurements and raw logs need to be trustworthy. (Pages 2–4.) 
+The_Relay_Assignment_Brief.pdf
+ 
+The_Relay_Assignment_Brief.pdf
+
+3. Initial brainstorming: questions we should explore
+I don't want to choose an architecture yet. Instead, let's identify the decisions that will shape the project.
+
+Area
+
+Questions worth debating
+
+Pipeline
+
+How many stages? Which stages need an LLM? Which can be deterministic?
+
+Retrieval
+
+Fixed-size chunks or semantic chunks? How many passages? Reranking?
+
+Execution
+
+Sequential calls or parallel calls wherever possible?
+
+Queueing
+
+Do we accept every request? What happens when the queue fills?
+
+Rate limits
+
+Do we wait, reject, retry or degrade gracefully?
+
+Streaming
+
+Do we stream only the final answer or earlier progress too?
+
+Reliability
+
+What happens when one intermediate model call fails?
+
+Cost
+
+How do we control tokens per answer?
+
+Quality
+
+When should the assistant refuse to answer?
+
+Simulation
+
+How accurately can our stand-in reproduce the real model service?
+
+There are a few particularly interesting problems I'd like us to debate.
+
+A. Speed versus correctness
+
+Suppose a question normally takes five model calls. During heavy load, those calls become expensive in terms of latency.
+
+Should we:
+
+Skip certain model calls?
+
+Use a cheaper or simpler approach for some stages?
+
+Reduce retrieval context?
+
+Wait longer to preserve answer quality?
+
+We cannot simply sacrifice citation verification to improve throughput. That would defeat the purpose of the application.
+
+B. Should every request be treated equally?
+
+Suppose 100 requests arrive together and the system can only process 20 immediately.
+
+Do we use a simple FIFO queue (first in, first out)? Do we impose a maximum waiting time? Do we reject some requests early?
+
+There isn't one universally correct answer. The important part is having a defensible policy.
+
+C. What does the stand-in actually simulate?
+
+This is a significant part of the assignment. A basic mock that sleeps for two seconds and returns a predefined response won't be convincing.
+
+We need to explore whether our simulation should reproduce latency distributions, token-dependent latency, concurrent load effects, rate limits and error patterns.
+
+D. How do we prove the system works?
+
+We need to compare at least five load scenarios, including steady traffic, bursts, sustained overload, a halved per-minute limit and an exhausted daily budget. We also need three retrieval configurations and at least 15 self-written quality questions. (Pages 2–3.) 
+The_Relay_Assignment_Brief.pdf
+ 
+The_Relay_Assignment_Brief.pdf
+
+4. Let's assess your knowledge before going deeper
+I know you have worked with Python, ML/NLP, APIs, Flask, Docker, Redis and cloud infrastructure. However, this project needs some additional systems-engineering concepts, so I don't want to equate experience with these tools with familiarity with their underlying principles.
+
+We'll do this conversationally. No need to Google answers. I want to understand how you reason, not whether you remember terminology.
+
+Here is the initial knowledge assessment.
+
+Question 1 — LLM pipeline
+Imagine a user submits a question.
+
+Our system makes three separate LLM calls:
+
+One to understand the question.
+
+One to generate an answer using retrieved documents.
+
+One to verify the answer and citations.
+
+The second call fails because the model provider returns a rate-limit error.
+
+What do you think should happen next?
+
+Would you retry the second call, restart the entire pipeline, or handle it differently? Explain your reasoning.
+
+Question 2 — Concurrency
+Suppose 50 users submit requests at almost exactly the same time.
+
+Our system can process only 5 requests concurrently.
+
+What do you think happens to the remaining 45 requests?
+
+Explain how you imagine the system managing them. Also, what happens if those 45 requests arrive while the first 5 are still running?
+
+Question 3 — Rate limits
+What is your understanding of the difference between these three limits?
+
+Requests per minute (RPM)
+
+Tokens per minute (TPM)
+
+Requests per day (RPD)
+
+Can you think of a situation where we might hit the TPM limit even though we haven't reached the RPM limit?
+
+Question 4 — Latency
+Suppose a request takes 10 seconds from submission to completion.
+
+But the user sees the first generated token after 8 seconds.
+
+What does this tell you about the user experience? What could be happening during those first 8 seconds?
+
+Question 5 — Retrieval
+Suppose one of our papers is 30 pages long.
+
+We split it into 100 smaller text chunks and retrieve the top 5 most relevant chunks for a question.
+
+What do you think determines whether these five chunks are actually useful? What could go wrong if we make the chunks too small or too large?
+
+How we'll use your answers
+I'll evaluate your responses across four levels:
+
+Comfortable: You understand the concept and can reason about trade-offs.
+
+Needs revision: You understand the basics but need to strengthen some details.
+
+New concept: We'll learn it before implementing it.
+
+Engineering depth: You can already reason about failure modes and design alternatives.
+
+We won't make you learn everything before starting. We'll learn concepts when they become relevant, but I want to avoid blindly implementing things you can't explain in the eventual live discussion.
+
+Let's start with Question 1. Answer in your own words, even if you're unsure. We'll discuss your reasoning before moving on.
+
+The Relay is a constrained multi-step assistant: understand the question, retrieve from three fixed papers, decide what to do, draft a cited answer, then check it — under real Groq free-tier limits, with a stand-in you control for loads the free tier cannot take. The point of the write-up is the tradeoffs you measured, not a perfect system.
+
+## What actually has to exist
+
+A pipeline of at least four steps, one tool call (retrieval), and one branch or loop. Every answer cites a passage or explicitly refuses. You measure a modest number of real Groq calls, then run at least three load shapes (steady, burst, sustained overload) mostly against the stand-in. Output is code, results.csv (one row per request), filled tables, and ≤2 pages.
+
+The four goals cannot all win. A workable stance: never send an uncited or invented answer, drop or defer under overload rather than burn the daily budget, and define “fast” as time-to-first-token under a few seconds for the requests you accept.
+
+## Design forks worth deciding before code
+
+| Fork | Lean one way | Cost |
+|---|---|---|
+| Language | Python | Easiest HTTP, async, CSV. C++/Go only if you already live there. |
+| Orchestration | One request = one async task with a hard step budget | Loops can eat the daily token cap. Cap iterations (e.g. 1 retry, 1 rewrite). |
+| Retrieval | Chunk text, score by keyword/BM25 first | Embeddings add a second model, latency, and a failure mode you may not need. |
+| When limits are close | Shrink retrieval (fewer chunks) or refuse early | Full retrieval + draft + check is the expensive path. |
+| Stand-in | Same interface as Groq, scripted latency/errors/429s/streaming | Must be calibrated from your real measurements, and you must say where it is least like Groq. |
+| Admission | Small queue + reject when full or when daily budget is gone | “Nobody turned away” loses. At 3pm with no budget, the user gets an honest refusal, not a hallucinated answer. |
+
+A shape that satisfies the minimum without gold-plating:
+
+1. Classify intent (answerable vs not, and how many hops).
+2. Retrieve top-k chunks (the tool).
+3. Branch: if nothing relevant, refuse; else draft with citations.
+4. Check citations against the retrieved text; one rewrite loop max, then send or refuse.
+
+## What I need to know about you
+
+Reply in a few lines, honestly. Wrong answers are fine; they change how I explain things.
+
+1. **Python.** Can you read and edit async code (async/await, httpx or aiohttp)? Or do you want this synchronous and slower?
+2. **HTTP APIs.** Have you called an OpenAI-compatible chat API (Groq is this shape: POST /openai/v1/chat/completions, streaming via SSE)? Do you already have a Groq free key, or not yet?
+3. **Rate limits.** Do you know the difference between requests/min, tokens/min, requests/day, and “in flight”? Have you handled a 429 (back off vs fail the user)?
+4. **Retrieval.** Have you chunked a PDF/paper and searched it (even with simple keyword overlap)? Embeddings, BM25, or neither?
+5. **Measurement.** Comfortable computing p50/p95 from a CSV, and with the idea that time-to-first-token and total time are different?
+6. **Load.** Have you fired concurrent requests (threads, asyncio, or a tool like hey/wrk), or is that new?
+
+Also say which of these you want to go deep on versus keep minimal: streaming, a real queue, BM25, or the stand-in’s “gets slower under load” behavior.
+
+Once you answer, we pick the one design decision that shapes everything else, then we build. No code until then.
+
+
+this was the answer a previous chat gave me, do you think anything here is worth including for our current conversation from this
+…
+Yes. In fact, I think the previous response adds something valuable that we should incorporate. It is more focused on assessing your practical implementation readiness, whereas my earlier approach focused more on understanding the engineering problem.
+
+I'd combine the two rather than replace either.
+
+1. What I would retain
+The previous response introduces six areas that we should explicitly assess:
+
+Area
+
+What we need to establish
+
+Python
+
+Async programming, async/await, HTTP clients
+
+HTTP APIs
+
+Calling LLM APIs, handling responses, streaming
+
+Rate limiting
+
+RPM, TPM, RPD, concurrency, HTTP 429
+
+Retrieval
+
+PDF extraction, chunking, keyword search, embeddings, BM25
+
+Measurement
+
+CSV analysis, percentiles, TTFT, total latency
+
+Load testing
+
+Concurrent requests, bursts, queues, throughput
+
+These are excellent areas to assess before implementation.
+
+I'd also retain the question about which topics you want to explore deeply versus keep minimal. We shouldn't spend an hour implementing an elaborate queue if a simpler mechanism is sufficient to demonstrate the engineering trade-offs.
+
+2. What I would NOT treat as decided
+The previous response proposes several reasonable design choices, but we shouldn't accept them without discussion.
+
+Previous suggestion
+
+My take
+
+Use Python
+
+Likely sensible, but let's establish why.
+
+Use BM25 instead of embeddings
+
+Worth experimenting with, not decided.
+
+One retry and one rewrite maximum
+
+A good initial hypothesis, needs justification.
+
+Small queue with rejection
+
+Worth debating against other admission policies.
+
+Define fast as TTFT under a few seconds
+
+An arbitrary starting target, not an assignment requirement.
+
+Never compromise on citations
+
+Strong principle. Correctness and citation verification are central to this assignment.
+
+One distinction I particularly want us to understand is that a design that works under normal load might be actively harmful under heavy load.
+
+For example, retries seem helpful individually, but when hundreds of requests are failing because of a shared rate limit, retries can amplify the problem.
+
+That's exactly the kind of engineering reasoning the assignment is testing.
+
+3. Something the previous response could have emphasised more
+There are some less obvious deliverables that we must keep in mind throughout development.
+
+Three retrieval configurations must be experimentally compared.
+
+We need at least 15 questions for answer-quality evaluation.
+
+We must report a particularly slow request, separating waiting, working and retrying time.
+
+We need to explain three ways the paper library can mislead a naive retriever.
+
+We need honest feedback on Vaani.
+
+We need to preserve our actual assistant conversation history and explain where you overruled the assistant.
+
+The last requirement is especially interesting. The reviewers explicitly want to understand how you direct AI coding assistants, identify mistakes and make independent decisions. 
+The_Relay_Assignment_Brief.pdf
+
+I would treat this as part of the project rather than something we write at the very end.
+
+4. My proposed approach to our discussion
+Let's combine the two assessments into three stages.
+
+Stage 1 — Establish your technical baseline
+
+Assess familiarity with Python async, APIs, rate limits, retrieval, latency measurement and load testing.
+
+Stage 2 — Engineering scenarios
+
+Discuss practical problems: a 429 response, a sudden traffic burst, a slow model response, irrelevant retrieval results and an exhausted daily quota.
+
+I want to see how you approach these problems, not just whether you know the terminology.
+
+Stage 3 — Explore architecture and trade-offs
+
+Compare alternative designs, understand their disadvantages and select an approach together.
+
+We will not write code until we've completed these discussions and have a reasonably clear design.
+
+Let's begin with the technical baseline
+For each topic, tell me whether you're comfortable, know the basics, or haven't worked with it.
+
+A. Your current familiarity
+
+Choose the closest description for each. Don't overthink it.
+
+Python async programming
+
+async / await, asyncio, concurrent tasks
+
+
+Comfortable
+
+Basics
+
+New
+HTTP APIs
+
+POST requests, JSON responses, HTTP status codes
+
+
+Comfortable
+
+Basics
+
+New
+LLM APIs
+
+Chat completions, token usage, streaming responses
+
+
+Comfortable
+
+Basics
+
+New
+Rate limiting
+
+RPM, TPM, daily quotas, HTTP 429
+
+
+Comfortable
+
+Basics
+
+New
+Document retrieval
+
+PDF extraction, chunking, keyword search, embeddings, BM25
+
+
+Comfortable
+
+Basics
+
+New
+Performance measurement
+
+CSV analysis, p50, p95, p99, latency
+
+
+Comfortable
+
+Basics
+
+New
+Concurrency and load testing
+
+Simultaneous requests, queues, traffic bursts
+
+
+Comfortable
+
+Basics
+
+New
+Redis and task queues
+
+Workers, task queues, retry mechanisms
+
+
+Comfortable
+
+Basics
+
+New
+B. Groq account
+
+
+Already have a free key
+
+Have an account, no key yet
+
+Haven't created an account
+C. Which topics would you particularly like to understand deeply?
+
+Select multiple. Anything not selected we'll aim to keep relatively simple.
+
+
+Streaming
+
+Real queue and concurrency
+
+BM25 / Retrieval
+
+Stand-in under load
+
+Retry and rate-limit strategies
+
+Latency measurement
+After this, we'll work through the scenarios, starting with what happens when an intermediate LLM call gets rate-limited.
+
+I want you to finish this project understanding not just how the system works, but why we made each engineering decision and what would happen if we changed it.
+
+Here is my technical baseline for The Relay:
+Python async programming: New
+HTTP APIs: Basics
+LLM APIs: Basics
+Rate limiting: New
+Document retrieval: New
+Performance measurement: New
+Concurrency and load testing: New
+Redis and task queues: New
+Groq: Not yet
+Topics I want to explore deeply: Streaming, BM25 / Retrieval, Stand-in under load, Real queue and concurrency, Latency measurement, Retry and rate-limit strategies. Let's continue the project discussion without writing code yet.
+Great. This gives me a much clearer picture of where we should begin.
+
+My main takeaway is that you have some familiarity with the application layer (Python, APIs, LLMs), but most of the systems-engineering concepts required by this assignment will be new.
+
+That's perfectly manageable. We just need to learn them in the right order.
+
+I also want to establish one ground rule: I'll explain concepts, but I'll make you reason through the engineering decisions. I don't want you to become dependent on me for every decision in the project.
+
+1. Our learning roadmap
+Based on your baseline and the topics you want to explore deeply, I'd arrange things in this order.
+
+Request lifecycle and asynchronous programming
+
+Understand how a request travels through our application, how multiple requests execute simultaneously, and what async/await actually solves.
+
+Foundation
+Concurrency, queues and admission control
+
+Understand workers, concurrency limits, queue capacity, FIFO scheduling, backpressure and rejection.
+
+Rate limiting and retry strategies
+
+Understand RPM, TPM, RPD, 429 errors, exponential backoff, jitter and retry budgets.
+
+Document retrieval and BM25
+
+Understand PDF extraction, chunking, keyword retrieval, ranking, reranking and retrieval evaluation.
+
+Streaming and latency measurement
+
+Understand SSE, tokens, time to first token (TTFT), p50/p95/p99 and measuring latency at different pipeline stages.
+
+Stand-in model service
+
+Design a simulated service that reproduces real latency, failures, rate limits, streaming and load-dependent slowdowns.
+
+System design and trade-offs
+
+Bring everything together and decide on the architecture based on the assignment's requirements.
+
+A note: I don't think we necessarily need Redis for this assignment. We should understand what a task queue is, but a Python-based in-memory queue might be sufficient. Introducing Redis means another service to configure and another potential failure point.
+
+We should add complexity only when it helps us measure or demonstrate something.
+
+2. First, understand the request lifecycle
+Before discussing rate limits, I want to establish a mental model.
+
+Imagine five users submit questions to our application.
+
+Our application receives them, but instead of starting every request immediately, it has a limited number of workers.
+
+Request processing model
+Incoming requests
+
+U1 · U2 · U3 · U4 · U5 · ...
+
+Admission control
+
+Should we accept this request?
+
+Waiting queue
+
+U3
+U4
+U5
+U6
+U7
+Workers (maximum 2 active requests)
+
+Worker 1
+
+U1 active
+Worker 2
+
+U2 active
+Groq API → Response
+
+There are three distinct concepts here:
+
+Concurrency: How many requests can actively execute at the same time?
+
+Queue: Where do requests wait when all available workers are busy?
+
+Rate limiting: How frequently are we allowed to send requests or consume tokens at the model provider?
+
+These are not the same thing.
+
+For example, we might allow 10 requests to execute concurrently, but the provider might only allow a certain number of API calls per minute.
+
+This distinction will be fundamental to our design.
+
+3. Engineering scenario 1: The 429 problem
+Let's start with a real situation that our application will encounter.
+
+Suppose a user submits:
+
+Explain the difference between the original Transformer architecture and Moshi's approach to real-time dialogue.
+
+Our pipeline performs:
+
+Stage
+
+Operation
+
+Status
+
+1
+
+Understand question
+
+Completed
+
+2
+
+Retrieve relevant passages
+
+Completed
+
+3
+
+Draft answer using Groq
+
+Completed
+
+4
+
+Verify citations using Groq
+
+Failed: HTTP 429
+
+The provider has returned a rate-limit error.
+
+HTTP 429
+Too Many Requests
+
+An important distinction: the failure is not necessarily because the model is broken. The provider may simply be telling us that we've exceeded an allowed request or token rate.
+
+Now consider four possible responses.
+
+Option A — Retry immediately
+
+Send the same verification request again. Perhaps the request goes through this time.
+
+Option B — Wait and retry
+
+Wait for a specified period, then retry the verification stage. Limit how many times we're willing to do this.
+
+Option C — Restart the entire pipeline
+
+Start from question classification, retrieve the papers again, generate a new answer and retry verification.
+
+Option D — Give up immediately
+
+Return an honest message that the service is temporarily unable to verify the response.
+
+There are trade-offs:
+
+A may create even more congestion.
+
+B introduces additional latency but may recover successfully.
+
+C wastes previously completed work and consumes additional tokens.
+
+D preserves resources but unnecessarily abandons a potentially recoverable request.
+
+There are also more sophisticated techniques we'll discuss later, particularly exponential backoff and jitter.
+
+Your first engineering challenge
+I want you to answer these three questions in your own words.
+
+1. Which option would you choose and why?
+
+You can choose a combination too.
+
+2. Suppose 100 users encounter this same 429 error at almost exactly the same time. Would your decision change?
+
+Think about what happens when all 100 requests retry after the same waiting period.
+
+3. Suppose the daily API quota is completely exhausted, rather than the per-minute limit being exceeded. Would you still retry? Why or why not?
+
+Don't worry about using technical terminology. I'm more interested in your reasoning.
+
+One thing I want you to keep in mind throughout this assignment: we are not trying to build the most sophisticated distributed system possible. We are trying to build a small system whose behaviour we can understand, measure, explain and defend.
+
+That is a much more valuable engineering exercise than simply getting an LLM pipeline to work.
+
+i feel the most sane option is B. however if cost cutting is our main motive, D looks good too.
+maybe the waiting times can be a little offset with one another.
+i won't retry, for a less frustrating experience for the user i'd be transparent about limits and would ask them to return with their query when API quota replenishes.
+I like your reasoning. In fact, your answers show that you're beginning to distinguish between recoverable failures and failures where retrying is pointless.
+
+Let's examine each answer and refine it into something we could eventually defend in our project report and live discussion.
+
+1. Evaluating your decisions
+Question 1: Which option would you choose?
+Good decision Option B — Wait and retry.
+
+I agree.
+
+Consider what has already happened:
+
+Question classification succeeded.
+
+Retrieval succeeded.
+
+Answer generation succeeded.
+
+Only citation verification failed.
+
+Restarting the entire pipeline would waste completed work. Retrying just the failed verification stage is much more efficient.
+
+There is one important addition: we should not retry indefinitely.
+
+Our retry policy should eventually have:
+
+A maximum number of attempts.
+
+A waiting period between attempts.
+
+A maximum acceptable waiting time for the user.
+
+A fallback when recovery isn't possible.
+
+For example, we could allow one retry for a temporary rate-limit error.
+
+If verification still fails, we don't send the unverified answer.
+
+Question 2: What if 100 users encounter the error?
+Good intuition
+You mentioned offsetting their waiting times. This is an important idea in distributed systems called jitter.
+
+Imagine all 100 requests receive a 429 error and are told to retry after exactly five seconds.
+
+Without jitter
+
+All requests retry simultaneously.
+
+A second burst of requests after five seconds.
+
+With jitter
+
+Requests retry at slightly different times.
+
+Retry attempts distributed over a time window.
+
+A common implementation uses exponential backoff with jitter.
+
+The waiting period increases after each failure, while a random component prevents requests from synchronising.
+
+However, there is another important consideration: jitter alone doesn't solve the problem.
+
+We also need to control the total number of outgoing requests. Otherwise, 100 requests can still overwhelm the provider, just at slightly different times.
+
+This is where rate limiters and queues become important.
+
+Question 3: What if the daily quota is exhausted?
+Exactly right
+I agree with your decision not to retry.
+
+There is no reason to repeatedly send requests to a service whose daily quota has been exhausted.
+
+The user should receive something like:
+
+We're temporarily unable to complete your request because today's model usage limit has been reached. Your request has not been completed or verified. Please try again after the daily quota resets.
+
+One small improvement: we should communicate the expected reset time only when we have reliable information about it.
+
+Also, remember that we should not return the draft answer without citation verification just because the quota is exhausted.
+
+2. What I would take forward into our design
+We haven't committed to an architecture, but your answers give us a reasonable starting hypothesis.
+
+Situation
+
+Potential behaviour
+
+Temporary RPM limit
+
+Wait and retry the failed stage
+
+Temporary TPM limit
+
+Wait for sufficient token capacity
+
+Many simultaneous 429s
+
+Backoff with jitter and centralised rate control
+
+Daily quota exhausted
+
+Stop sending requests and inform users
+
+Retry budget exhausted
+
+Return a transparent failure
+
+Verification fails
+
+Never send the unverified answer
+
+One distinction we will investigate when we set up Groq: the exact response and recovery information can differ between rate-limit conditions. We should inspect the actual response headers and error body rather than assume every 429 means the same thing.
+
+The assignment specifically asks us to explain what happens at both per-minute and per-day limits, and to demonstrate a case where retrying made things worse. 
+The_Relay_Assignment_Brief.pdf
+
+3. Next concept: concurrency and queues
+This is probably the most important concept to understand before we discuss the architecture.
+
+Imagine the following situation.
+
+Our application has a maximum of five active workers.
+
+At 2:00 PM, 50 users submit questions almost simultaneously.
+
+5
+Active workers
+
+Currently processing
+
+45
+Waiting requests
+
+Not yet processing
+
+Now, what should happen to those 45 requests?
+
+Consider three possible policies:
+
+A. Unlimited queue
+
+Accept all 45 requests and make them wait until a worker becomes available.
+
+Problem: what if another 500 requests arrive? Users may wait several minutes before their questions even begin processing.
+
+B. Limited queue
+
+Allow only 20 requests to wait. If the queue is full, reject new requests with a message asking them to retry later.
+
+Problem: some users are turned away, even if they might have been willing to wait.
+
+C. No waiting queue
+
+Only accept requests when a worker is immediately available. Reject everyone else.
+
+Problem: the application can reject legitimate requests during short bursts, even when capacity would become available moments later.
+
+Your next engineering challenge
+I want you to consider these four questions:
+
+Which of A, B and C would you prefer for The Relay?
+
+Suppose a user has already waited 45 seconds in the queue. Should we still process their request when a worker becomes available, or should we discard it?
+
+Suppose users are waiting in the queue, but the Groq API is already rate-limited. Should we keep moving requests into workers or slow down the pipeline?
+
+What do you think is worse: rejecting a user immediately or accepting their request and making them wait 3 minutes?
+
+There isn't a universally correct answer.
+
+Think about the experience you would want as a user, the limited API budget, and the fact that our application must never sacrifice answer correctness just to appear responsive.
+
+One thing at a time: let's understand queueing properly before moving into Python's async programming.
+
