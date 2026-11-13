@@ -179,7 +179,9 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
 - **Root cause (found 03:08): the Codespace's `moshi.pdf` had been replaced** by a different file: 6,865,366 bytes,
   modified 2026-11-13 19:55 UTC, md5 51d4211e..., vs the original download (4,694,312 bytes, md5 c18d8ed0...). Neither pypdf
   version can read it (7.0.1 also gave 144 chunks / 15 of 30). The other two PDFs were unchanged. Cause of the replacement unknown.
-- Contributing: Claude's pin `pypdf==6.17.0` (made in E10 to match the experiments) fails on the Codespace's Python 3.14.
+- Initially blamed (by Claude, wrongly as far as the evidence goes): the pin `pypdf==6.17.0`. The only 6.17 test on
+  Python 3.14 ran against the *replaced* file, so 6.17 was never shown to fail on the original. Original claim kept below for the record:
+  Claude's pin `pypdf==6.17.0` (made in E10 to match the experiments) fails on the Codespace's Python 3.14.
   It worked on Claude's Python 3.13, which is why it was never caught. pypdf 7.0.1 (what the Codespace had before)
   parses all three on both.
 - Silver lining: with a third of the library gone, **the pipeline refused rather than invented answers (P1 held)**.
