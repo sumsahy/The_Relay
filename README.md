@@ -19,3 +19,11 @@ Never commit the key.
 python scripts/try_retrieval.py "how does multi-head attention work"
 python scripts/try_retrieval.py "what is Moshi's latency" --size 100 --k 3
 ```
+
+## Step 2: production retrieval + first Groq call
+
+```bash
+git pull && pip install -r requirements.txt
+python scripts/try_retrieval.py "what latency does Moshi achieve"   # section chunks + hybrid
+python scripts/hello_groq.py                                          # 1 real Groq call (~50 tokens)
+```
