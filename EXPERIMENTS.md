@@ -202,3 +202,26 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
 - Lesson (same as E15): check that each piece is really up before trusting a run; a 100% error rate is a setup bug,
   not a result.
 - Raw rows archived, not used.
+
+## E17: Table 3 rerun, valid  (2026-11-14 03:34, run by Sumukh, pypdf 7.0.1, 286 chunks, moshi md5 OK)
+- 27 runs, all status ok. Moshi questions (Q03-Q05) now answered (E15 refused all of them).
+- **Slow request (section 4 candidate): section-300-k5-Q05, 9,110 ms total = 1,797 ms working + 7,312 ms waiting to retry.**
+  Two per-minute 429s (draft, then verify): "Used 5796, Requested 2488" and "Used 7893, Requested 511". All of the delay
+  is **before the first token** (we only deliver after verification). The run_quality pacing waits before each
+  *question*, not before each *call*, so a question needing ~5.1K tokens over two drafts overran the bucket. Retrying helped here.
+- **Q10 (encoder vs decoder) wrongly refused** ("refused_unverifiable"). Both drafts quoted Transformer §3.1 correctly but
+  **stitched two separate sentences with "..."**. Our quote check needs one contiguous string, so both failed.
+  The answer was right; the check was too literal. Candidate fix: split quotes on "..." and require every fragment
+  to appear verbatim. Decision pending (Sumukh).
+- Q05 attempt 0 also failed the quote check, for a different and legitimate reason: it silently dropped a middle sentence.
+  The redraft quoted verbatim and passed.
+
+## E18: load scenarios, first working run (uncalibrated latency defaults, scale 10)  (2026-11-14 03:24, Sumukh)
+- steady 32/32 answered (1 retry). halved 28/28 answered, **the limiter detected the halved limit from the headers** (1 change).
+- burst (96 in 10 s): 52 answered, 4 pre-filtered, 40 gave up (**34 while queued, spending nothing**; 6 mid-work), peak queue 64, 3 retries.
+- **burst_naive** (same burst, no limiter/queue): 29 answered, **66 rate-limited, 142 retries**. Retry storm reproduced (cf. v0.5 test).
+- **overload: bug.** 57 of 116 got "daily budget gone". The stand-in scaled per-minute limits 10x but NOT the daily 200K
+  tokens, so overload exhausted the daily budget in under 3 minutes. Fixed: daily limits scale with `--limit-scale`.
+  (Real-world reading: at paid-tier per-minute speed, a free daily budget lasts minutes.)
+- **daily: didn't exhaust** (60 requests left was enough for 24 arrivals). Redesigned: start with ~60K tokens left.
+- Not used for tables: latency was uncalibrated, and overload/daily were wrong. Rerun after calibration.

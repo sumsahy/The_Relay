@@ -81,8 +81,11 @@ class StandIn:
         rpm, tpm = LIMITS["rpm"] * limit_scale, LIMITS["tpm"] * limit_scale
         self.rpm = Bucket(rpm, rpm / 60)
         self.tpm = Bucket(tpm, tpm / 60)
-        self.rpd = Bucket(LIMITS["rpd"], LIMITS["rpd"] / 86400, daily_requests_left)
-        self.tpd = Bucket(LIMITS["tpd"], LIMITS["tpd"] / 86400, daily_tokens_left)
+        # E18: daily limits scale too. Unscaled, a 10x-per-minute stand-in burned the 200K daily budget inside the
+        # overload scenario, so "overload" silently turned into "daily budget gone".
+        rpd, tpd = LIMITS["rpd"] * limit_scale, LIMITS["tpd"] * limit_scale
+        self.rpd = Bucket(rpd, rpd / 86400, daily_requests_left)
+        self.tpd = Bucket(tpd, tpd / 86400, daily_tokens_left)
         self.inflight = 0
         self.log = []
 

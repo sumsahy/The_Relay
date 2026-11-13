@@ -52,7 +52,8 @@ SCENARIOS = {
     "burst_naive": (["--limit-scale", "{s}"],                    False,  True,  10),   # retry-storm demo
     "overload":    (["--limit-scale", "{s}"],                    True,   True,  180),
     "halved":      (["--limit-scale", "{h}"],                    True,   True,  180),  # limit halved WITHOUT telling our limiter
-    "daily":       (["--limit-scale", "{s}", "--daily-requests-left", "60"], True, True, 180),
+    # daily: budget nearly gone at the start (~60K tokens = ~12 answers), so it runs out DURING the scenario
+    "daily":       (["--limit-scale", "{s}", "--daily-tokens-left", "60000"], True, True, 180),
 }
 
 
