@@ -25,9 +25,10 @@ from relay.results_log import DETAIL_JSONL, log_result  # noqa: E402
 from relay.retrieval import Retriever  # noqa: E402
 
 # Table 3 settings (piece size, pieces fetched, re-rank). Claude default, see CHANGELOG v0.4.
+# Order matters: if the daily budget runs out mid-run, the chosen setting's data is already in.
 SETTINGS = {
-    "w200/k5/bm25/no-rerank": dict(chunking="w200", method="bm25", k=5),       # naive baseline
     "section-300/k5/hybrid/no-rerank": dict(chunking="section", method="hybrid", k=5),  # chosen
+    "w200/k5/bm25/no-rerank": dict(chunking="w200", method="bm25", k=5),       # naive baseline
     "section-300/k3/hybrid/no-rerank": dict(chunking="section", method="hybrid", k=3),  # cheaper
 }
 NEED_TOKENS = 4500          # wait until the per-minute bucket has about this much room
