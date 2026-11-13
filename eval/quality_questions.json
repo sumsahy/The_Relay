@@ -1,9 +1,95 @@
 {
-  "_note": "Sumukh's own questions for answer quality (brief: at least 15). For each: the question, whether the papers answer it, and where/what the right answer is, so grading is fair. Replace the two examples.",
+  "_note": "Written by Sumukh (questions are his exact wording). 'expected' and paper locations filled in by Claude from the paper text, for grading. answerable: true / false / 'partial' / 'near-miss'.",
   "questions": [
-    {"id": "Q01", "q": "EXAMPLE: What latency does Moshi achieve?", "answerable": true,
-     "expected": "160 ms theoretical, 200 ms in practice (Moshi abstract / intro)"},
-    {"id": "Q02", "q": "EXAMPLE: How many parameters does GPT-4 have?", "answerable": false,
-     "expected": "Not in the papers: must refuse"}
+    {
+      "id": "Q01",
+      "q": "how many sentence pairs were there in english german dataset wmt 2014?",
+      "answerable": true,
+      "expected": "About 4.5 million sentence pairs. [Transformer §5.1 p.7]"
+    },
+    {
+      "id": "Q02",
+      "q": "what averaging technique does smoothing module apply?",
+      "answerable": true,
+      "expected": "An exponential moving average (EMA): z_bar_t = P_t * z_hat_t + (1 - P_t) * z_bar_{t-1}. [Dynamic Chunking §2.2.2 p.7]"
+    },
+    {
+      "id": "Q03",
+      "q": "what do spectron and PSLM use as prefix to generating speech?",
+      "answerable": true,
+      "expected": "Text: they first produce the utterance as text tokens, then use them as a prefix to generate speech ('Chain-of-Modality'). [Moshi §2 p.5]"
+    },
+    {
+      "id": "Q04",
+      "q": "what is used To discretize waveforms into audio tokens?",
+      "answerable": true,
+      "expected": "Mimi, a neural audio codec, using residual vector quantization (RVQ). [Moshi §3.3 p.9]. Names no paper: tests unnamed-paper retrieval."
+    },
+    {
+      "id": "Q05",
+      "q": "how does quality filtering work?",
+      "answerable": true,
+      "expected": "Moshi/Helium pre-training data: a fastText classifier (9 categories, trained on high-quality sources vs random CommonCrawl), applied per line, averaged weighted by line length, documents kept above a threshold. [Moshi §3.2.2 p.8-9]. Names no paper."
+    },
+    {
+      "id": "Q06",
+      "q": "why Alternate Language Datasets are also explored Besides conventional language modeling? what all alternatives were explored?",
+      "answerable": true,
+      "expected": "Chinese, code and DNA, because each challenges tokenization: Chinese has 3-byte characters and no spaces; code has lots of whitespace and latent hierarchy; DNA has no natural tokenization cues. [Dynamic Chunking §3.2 p.15]. Two-part question: both parts needed for 'correct'."
+    },
+    {
+      "id": "Q07",
+      "q": "how does HNet compare with Mixture of experts?",
+      "answerable": true,
+      "expected": "H-Net can be seen as dynamic sparsity like MoE (more parameters, same FLOPs), but it beats a FLOPs-matched byte-level MoE (LlamaByte-MoE), so its gains are not just from sparsity. [Dynamic Chunking §3.3 p.19-20]"
+    },
+    {
+      "id": "Q08",
+      "q": "why is positional encoding necessary?",
+      "answerable": true,
+      "expected": "The model has no recurrence and no convolution, so information about token order/position must be injected. [Transformer §3.5 p.6]"
+    },
+    {
+      "id": "Q09",
+      "q": "can i use batch norm instead of layer norm?",
+      "answerable": "near-miss",
+      "expected": "Near miss: the Transformer uses layer normalization (LayerNorm(x + Sublayer(x))) [Transformer §3.1 p.3], but none of the papers discusses or tests batch norm. Correct = say what is used and that the papers don't answer the swap question. Wrong = any claim that batch norm would or wouldn't work."
+    },
+    {
+      "id": "Q10",
+      "q": "what is the core difference between encoder and decoder in transformer architecture.",
+      "answerable": true,
+      "expected": "Both are stacks of N=6 layers. The decoder adds a third sub-layer doing multi-head attention over the encoder's output, and masks its self-attention so a position can't attend to later positions (auto-regressive). [Transformer §3.1 p.3]"
+    },
+    {
+      "id": "Q11",
+      "q": "what role does self attention play in modelling conversational context in moshi?",
+      "answerable": "partial",
+      "expected": "Partial: Moshi describes a Temporal Transformer (initialised from Helium) modelling minutes of context over multi-stream audio + text tokens, but never explicitly states 'the role of self-attention in conversational context'. Correct = stated facts with citations and an honest note on what isn't said. Wrong = unsupported explanation."
+    },
+    {
+      "id": "Q12",
+      "q": "dynamic chunking reduces unnecessary context by learning boundaries and compressing the sequences. could a similar mechanism work to reduce moshi's computational overhead?",
+      "answerable": "partial",
+      "expected": "Speculative cross-paper: neither paper evaluates dynamic chunking for Moshi. Correct = describe what dynamic chunking does (learned boundaries, compression into chunks) and what Moshi does about its own cost (e.g. low 12.5 Hz frame rate, RQ-Transformer splitting time and depth), with citations, and say the papers don't test the combination. Wrong = a confident yes/no."
+    },
+    {
+      "id": "Q13",
+      "q": "what does deepseek do differently?",
+      "answerable": false,
+      "expected": "Not answerable: DeepSeek appears only as a citation (learning-rate schedules with long constant phases) [Dynamic Chunking §4 p.23]. The papers don't say what it does differently. Must refuse (may mention it's only cited)."
+    },
+    {
+      "id": "Q14",
+      "q": "tell me more about JEV",
+      "answerable": false,
+      "expected": "Not answerable: 'JEV' appears in none of the papers. Must refuse, without using outside knowledge."
+    },
+    {
+      "id": "Q15",
+      "q": "what are FLOPs",
+      "answerable": true,
+      "expected": "Answerable from the papers, narrowly: floating point operations, used to measure training cost. The Transformer estimates them as training time x number of GPUs x sustained single-precision capacity per GPU [Transformer §6.1, Table 2 footnote]; Dynamic Chunking uses FLOPs to match compute budgets across models [Dynamic Chunking §3 p.11]. Tests 'answer from the papers, not from memory'."
+    }
   ]
 }
