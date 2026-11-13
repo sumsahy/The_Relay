@@ -155,15 +155,31 @@ class Retriever:
         q = np.array(list(self.embedder.query_embed([query])))[0]
         return self.vecs @ (q / np.linalg.norm(q))
 
-    def search(self, query: str, k: int = 5) -> list[tuple[Chunk, float]]:
-        """Hybrid search. Returns top-k (chunk, fused score)."""
+    def search(self, query: str, k: int = 5, papers: list[str] | None = None) -> list[tuple[Chunk, float]]:
+        """Hybrid search. Returns top-k (chunk, fused score).
+
+        papers: restrict to these papers. With 2+ papers, k is shared out so every named paper
+        gets at least k // len(papers) chunks (fixes "one paper hogs the results", X1).
+        """
         bm25 = self.bm25.get_scores(_tok(query))
         dense = self._dense_scores(query)
+        allowed = None if not papers else {i for i, c in enumerate(self.chunks) if c.paper in papers}
         fused: dict[int, float] = {}
         for scores in (bm25, dense):
-            for rank, i in enumerate(np.argsort(-scores)[:RRF_DEPTH], start=1):
-                fused[int(i)] = fused.get(int(i), 0.0) + 1.0 / (RRF_K + rank)
-        top = sorted(fused.items(), key=lambda x: -x[1])[:k]
+            order = [int(i) for i in np.argsort(-scores) if allowed is None or int(i) in allowed]
+            for rank, i in enumerate(order[:RRF_DEPTH], start=1):
+                fused[i] = fused.get(i, 0.0) + 1.0 / (RRF_K + rank)
+        ranked = sorted(fused.items(), key=lambda x: -x[1])
+        if papers and len(papers) > 1:
+            per = max(1, k // len(papers))
+            picked = []
+            for p in papers:
+                picked += [x for x in ranked if self.chunks[x[0]].paper == p][:per]
+            rest = [x for x in ranked if x not in picked]
+            picked += rest[:k - len(picked)]
+            top = sorted(picked, key=lambda x: -x[1])[:k]
+        else:
+            top = ranked[:k]
         return [(self.chunks[i], s) for i, s in top]
 
     def best_similarity(self, query: str) -> float:

@@ -27,3 +27,10 @@ git pull && pip install -r requirements.txt
 python scripts/try_retrieval.py "what latency does Moshi achieve"   # section chunks + hybrid
 python scripts/hello_groq.py                                          # 1 real Groq call (~50 tokens)
 ```
+
+## Step 3: the pipeline (real Groq)
+
+```bash
+python tests/test_pipeline_offline.py                      # all paths with a fake model, free
+python scripts/ask.py "What latency does Moshi achieve?"   # 2-4 real Groq calls, logged to results.csv
+```

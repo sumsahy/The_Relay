@@ -22,6 +22,8 @@ from dataclasses import dataclass, field
 import httpx
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+# The stand-in model service exposes the same endpoint shape, so the pipeline only changes the URL.
+STANDIN_URL = os.getenv("STANDIN_URL", "http://127.0.0.1:8100/openai/v1/chat/completions")
 
 RATE_HEADERS = (
     "retry-after",
@@ -61,7 +63,7 @@ def _api_key() -> str:
 
 async def chat(client: httpx.AsyncClient, model: str, messages: list[dict],
                max_tokens: int = 512, temperature: float = 0.0, timeout_s: float = 30.0,
-               extra: dict | None = None) -> CallResult:
+               extra: dict | None = None, url: str = GROQ_URL) -> CallResult:
     """One streamed chat completion. Never raises for provider errors: returns ok=False instead."""
     body = {"model": model, "messages": messages, "max_tokens": max_tokens,
             "temperature": temperature, "stream": True, **(extra or {})}
@@ -69,13 +71,18 @@ async def chat(client: httpx.AsyncClient, model: str, messages: list[dict],
     t0 = time.perf_counter()
     parts: list[str] = []
     try:
-        async with client.stream("POST", GROQ_URL, json=body, timeout=timeout_s,
+        async with client.stream("POST", url, json=body, timeout=timeout_s,
                                  headers={"Authorization": f"Bearer {_api_key()}"}) as r:
             res.status = r.status_code
             res.headers = {h: r.headers[h] for h in RATE_HEADERS if h in r.headers}
             if r.status_code != 200:
                 res.error_body = (await r.aread()).decode(errors="replace")[:500]
-                res.error = "rate_limit" if r.status_code == 429 else f"http_{r.status_code}"
+                if r.status_code == 429:
+                    body_l = res.error_body.lower()
+                    # Groq's message names the limit, e.g. "tokens per minute (TPM)" or "requests per day (RPD)"
+                    res.error = "rate_limit_day" if ("per day" in body_l or "(rpd)" in body_l or "(tpd)" in body_l) else "rate_limit_minute"
+                else:
+                    res.error = f"http_{r.status_code}"
                 return res
             async for line in r.aiter_lines():
                 if not line.startswith("data: "):

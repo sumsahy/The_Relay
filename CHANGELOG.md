@@ -8,6 +8,33 @@ Git commits hold the code; this file holds the reasoning.
 
 ---
 
+## v0.3: the pipeline  (2026-11-14, ~00:30)
+
+**What exists**
+- `relay/pipeline.py`: classify (code) -> pre-filter (code, under load only) -> retrieve (tool) -> draft (LLM)
+  -> verify quotes (code) -> verify support (LLM) -> drop failed claims / redraft once / refuse -> compose
+- `relay/results_log.py`: one row per request in `results.csv` with the brief's exact columns, full detail in `results/raw/requests.jsonl`
+- `scripts/ask.py`: one real question with progress steps and a timing breakdown
+- `tests/test_pipeline_offline.py`: 8 scripted cases incl. 429s, all passing
+- Groq client knows the stand-in URL, and tells per-minute from per-day 429s by Groq's error message
+
+**Decisions in this version**
+| Decision | Choice | Decided by | Principle | Status |
+|---|---|---|---|---|
+| Tensions T1-T4 resolutions | as written in PRINCIPLES.md | Sumukh (confirmed Claude's proposals) | | final |
+| Verification | both: code checks the exact quote, then LLM checks support | Sumukh | P1 | final |
+| LLM-verify only when idle | rejected | Sumukh, Claude withdrew its lean | P8 | final |
+| Classify | code (paper-name keywords), no LLM call | Claude default | P9 | **not reviewed**: LLM classify (query rewrite for A6, X1) still to test |
+| Cross-paper questions | k=5 shared across named papers (at least 2 each) | Claude default | P1 | not reviewed |
+| Failed claims | dropped, answer labelled "reduced"; if none survive, redraft once, then refuse | Claude default | P1, P4 | **not reviewed**: is this P4 "last resort"? |
+| Quote check | letters and digits only (survives PDF spacing), quote at least 4 words | Claude default | P1 | not reviewed |
+| Model | gpt-oss-20b, reasoning_effort=low, draft max_tokens 900, verify 400 | Claude default | P6 | not reviewed, to measure |
+| Splitting steps across models | not done: brief forbids "tricks" to get around limits | Claude | | flagged |
+| first_token_ms | time until the *verified* answer starts being delivered (progress messages logged separately) | Claude default | P1, P3 | not reviewed |
+| Retry numbers | max_retries=0 until the limits probe | pending | | pending |
+
+---
+
 ## Principles set  (2026-11-13, 23:30)
 Sumukh wrote down the user-experience principles **before** deciding the pipeline: see `PRINCIPLES.md` (P1 to P9).
 From here on, decisions cite principles.
