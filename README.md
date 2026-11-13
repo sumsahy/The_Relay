@@ -41,3 +41,10 @@ python scripts/ask.py "What latency does Moshi achieve?"   # 2-4 real Groq calls
 python standin/calibrate.py          # fit the stand-in to your real Groq calls
 python scripts/load_test.py          # all scenarios: steady, burst, burst_naive, overload, halved, daily
 ```
+
+## Step 5: tables
+
+```bash
+python scripts/build_results.py      # merge real + stand-in rows, apply your grades
+python scripts/make_tables.py        # -> results/tables.md (Tables 2a, 2b, 3)
+```
