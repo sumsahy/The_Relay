@@ -104,3 +104,24 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
   BM25 configs (false: bigger chunks find it) and quoted section+hybrid as 26 (it is 25 clean / 26 raw). Both corrected
   after re-checking the raw CSV.
 - **Conclusion:** no code change to the main pipeline yet. Decisions are Sumukh's (see end of the report).
+
+## E10: first real Groq call + first Codespace run  (2026-11-13, run by Sumukh)
+- Question: does the key work, and what do the response and rate-limit headers actually look like?
+- Setup: `python scripts/hello_groq.py` (openai/gpt-oss-20b, max_tokens=200, prompt "Reply with exactly: hello relay").
+- Result: ok, TTFT 601 ms, total 607 ms, prompt 77 tokens, completion **44** tokens for a 2-word answer.
+  Headers: limit-requests 1000, remaining 999, reset-requests **1m26.4s**; limit-tokens 8000, remaining-tokens **7723**, reset-tokens 2.077s.
+- Surprises / what they tell us:
+  1. **44 completion tokens for "hello relay"**: about 40 are hidden reasoning tokens. gpt-oss "thinks" before answering,
+     and those tokens are billed against our token limits. They also explain why TTFT (601 ms) is almost the whole call:
+     the first *visible* token only arrives after the thinking.
+  2. **7723 remaining = 8000 - 277**, and 277 = 77 prompt + **200 max_tokens**, not 77 + 44 used.
+     Hypothesis: Groq reserves prompt + max_tokens against the per-minute token limit up front. If true, a generous
+     max_tokens costs us TPM capacity even when unused. Needs confirming with a second call at a different max_tokens.
+  3. **reset-requests 1m26.4s = 86,400 s / 1,000.** The daily request limit seems to refill gradually (one request
+     every 86.4 s), not all at once at midnight. If true, "daily budget exhausted" recovers slowly, which changes how
+     the system should behave in that scenario. Needs confirming.
+  4. **reset-tokens 2.077s**: per-minute tokens also refill continuously (a "token bucket"), not in fixed minute windows.
+- Also: the Codespace built **286 chunks, not 280**, with a different embedding cache file. Cause: pypdf 7.0.1 in the
+  Codespace vs 6.17.0 where the experiments ran: different text extraction. The Moshi latency top 5 also differed.
+- Conclusion: pinned `pypdf==6.17.0` so code and experiments use identical text. Added `scripts/eval_retrieval.py`
+  to confirm the Codespace reproduces 25/30. Hypotheses 2 and 3 to be tested in the limits probe (Table 1).
