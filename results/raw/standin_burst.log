@@ -1,0 +1,25 @@
+Error handling request from 127.0.0.1
+Traceback (most recent call last):
+  File "/usr/local/python/3.14.2/lib/python3.14/site-packages/aiohttp/web_protocol.py", line 577, in _handle_request
+    resp = await request_handler(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python/3.14.2/lib/python3.14/site-packages/aiohttp/web_app.py", line 563, in _handle
+    return await handler(request)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspaces/The_Relay/standin/server.py", line 163, in handle
+    await resp.prepare(request)
+  File "/usr/local/python/3.14.2/lib/python3.14/site-packages/aiohttp/web_response.py", line 464, in prepare
+    return await self._start(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/python/3.14.2/lib/python3.14/site-packages/aiohttp/web_response.py", line 472, in _start
+    await self._write_headers()
+  File "/usr/local/python/3.14.2/lib/python3.14/site-packages/aiohttp/web_response.py", line 553, in _write_headers
+    writer.send_headers()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "/usr/local/python/3.14.2/lib/python3.14/site-packages/aiohttp/http_writer.py", line 239, in send_headers
+    self._write(headers_buf)
+    ~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/usr/local/python/3.14.2/lib/python3.14/site-packages/aiohttp/http_writer.py", line 103, in _write
+    raise ClientConnectionResetError("Cannot write to closing transport")
+aiohttp.client_exceptions.ClientConnectionResetError: Cannot write to closing transport
+stand-in on :8101 | calibration: standin/calibrate.py from 114 real Groq calls + probe | limit scale 10.0

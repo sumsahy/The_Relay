@@ -1,0 +1,18 @@
+{
+  "source": "standin/calibrate.py from 114 real Groq calls + probe",
+  "ttft_median_ms": 445.9,
+  "ttft_sigma": 0.311,
+  "prefill_ms_per_1k_prompt_tokens": 39.0,
+  "output_tokens_per_s": 1367.1,
+  "completion_tokens": {
+    "draft": 89,
+    "verify": 123,
+    "other": 20
+  },
+  "slowdown_per_inflight": 0.1283,
+  "observed": {
+    "real_ttft_p50_ms": 499.1,
+    "real_ttft_p95_ms": 680.7,
+    "n_calls": 114
+  }
+}

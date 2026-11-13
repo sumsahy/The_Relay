@@ -1,0 +1,6 @@
+{"scale": 10.0, "seed": 7, "scenario": "steady", "requests": 32, "duration_s": 179.8, "status": {"error": 32}, "outcome": {"failed": 32}, "retries": 64, "peak_queue": 1, "limit_changes_detected": 0}
+{"scale": 10.0, "seed": 7, "scenario": "burst", "requests": 96, "duration_s": 29.1, "status": {"error": 70, "ok": 15, "rate_limited": 11}, "outcome": {"failed": 70, "refused_prefilter": 15, "refused_busy": 11}, "retries": 140, "peak_queue": 48, "limit_changes_detected": 0}
+{"scale": 10.0, "seed": 7, "scenario": "burst_naive", "requests": 96, "duration_s": 13.6, "status": {"error": 96}, "outcome": {"failed": 96}, "retries": 192, "peak_queue": 1, "limit_changes_detected": 0}
+{"scale": 10.0, "seed": 7, "scenario": "overload", "requests": 130, "duration_s": 183.0, "status": {"error": 130}, "outcome": {"failed": 130}, "retries": 260, "peak_queue": 1, "limit_changes_detected": 0}
+{"scale": 10.0, "seed": 7, "scenario": "halved", "requests": 30, "duration_s": 174.9, "status": {"error": 30}, "outcome": {"failed": 30}, "retries": 60, "peak_queue": 1, "limit_changes_detected": 0}
+{"scale": 10.0, "seed": 7, "scenario": "daily", "requests": 20, "duration_s": 179.1, "status": {"error": 20}, "outcome": {"failed": 20}, "retries": 40, "peak_queue": 1, "limit_changes_detected": 0}
