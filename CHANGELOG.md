@@ -8,6 +8,12 @@ Git commits hold the code; this file holds the reasoning.
 
 ---
 
+## Principles set  (2026-11-13, 23:30)
+Sumukh wrote down the user-experience principles **before** deciding the pipeline: see `PRINCIPLES.md` (P1 to P9).
+From here on, decisions cite principles.
+
+---
+
 ## v0.2: retrieval experiment harness  (2026-11-13, overnight, run by Claude)
 
 **What exists (main pipeline unchanged)**
