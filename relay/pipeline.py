@@ -106,6 +106,7 @@ class RequestResult:
     total_ms: float = 0.0
     work_ms: float = 0.0                 # time inside LLM calls and tools
     retry_ms: float = 0.0                # time spent waiting to retry
+    limiter_wait_ms: float = 0.0         # time waiting for our own rate limiter before sending
     retries: int = 0
     tokens_in: int = 0
     tokens_out: int = 0
@@ -169,14 +170,21 @@ def _letters(s: str) -> str:
 
 
 class Pipeline:
-    def __init__(self, retriever: Retriever, client: httpx.AsyncClient, config: Config | None = None):
+    def __init__(self, retriever: Retriever, client: httpx.AsyncClient, config: Config | None = None,
+                 limiter=None):
         self.r, self.client, self.cfg = retriever, client, config or Config()
+        self.limiter = limiter      # relay.service.RateLimiter, or None for single questions
 
     async def answer(self, question: str, on_progress: Callable[[str], None] | None = None,
-                     request_id: str | None = None) -> RequestResult:
+                     request_id: str | None = None, under_load: bool | None = None,
+                     res: RequestResult | None = None) -> RequestResult:
+        """`res` lets the caller keep a handle on the record while it's being filled, so if the person
+        gives up mid-request we still know what was spent (tokens, retries)."""
         cfg = self.cfg
-        res = RequestResult(request_id or uuid.uuid4().hex[:8], question, cfg.retrieval_setting,
-                            t_start=time.time())
+        load_mode = cfg.under_load if under_load is None else under_load
+        if res is None:
+            res = RequestResult(request_id or uuid.uuid4().hex[:8], question, cfg.retrieval_setting)
+        res.t_start = time.time()
         t0 = time.perf_counter()
         ms = lambda: (time.perf_counter() - t0) * 1000
 
@@ -197,7 +205,7 @@ class Pipeline:
             step("classify", ts, papers=res.papers)
 
             # 2. pre-filter, only under load (decision 2026-11-13, PRINCIPLES T2)
-            if cfg.under_load:
+            if load_mode:
                 ts = time.perf_counter()
                 best = self.r.best_similarity(question)
                 step("prefilter", ts, best_similarity=round(best, 3))
@@ -359,9 +367,18 @@ class Pipeline:
         cfg, pol = self.cfg, self.cfg.retry
         extra = {"reasoning_effort": cfg.reasoning_effort, "include_reasoning": False} if "gpt-oss" in cfg.model else {}
         attempt = 0
+        est_prompt = sum(len(m["content"]) for m in messages) // 4
         while True:
+            if self.limiter is not None:
+                res.limiter_wait_ms += await self.limiter.acquire(est_prompt + max_tokens)
             r = await chat(self.client, cfg.model, messages, max_tokens=max_tokens,
                            timeout_s=cfg.call_timeout_s, extra=extra, url=cfg.url)
+            if self.limiter is not None:
+                used = (r.prompt_tokens or est_prompt) + (r.completion_tokens or 0) if r.ok else 0
+                self.limiter.refund(est_prompt + max_tokens - used)
+                rem = r.headers.get("x-ratelimit-remaining-tokens")
+                lim = r.headers.get("x-ratelimit-limit-tokens")
+                self.limiter.sync(float(rem) if rem else None, float(lim) if lim else None)
             res.work_ms += r.total_ms
             res.tokens_in += r.prompt_tokens or 0
             res.tokens_out += r.completion_tokens or 0

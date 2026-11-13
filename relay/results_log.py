@@ -19,10 +19,15 @@ RESULTS_CSV = ROOT / "results.csv"
 DETAIL_JSONL = ROOT / "results" / "raw" / "requests.jsonl"
 
 COLUMNS = ["request_id", "scenario", "source", "start_time", "first_token_ms", "total_ms", "status",
-           "retries", "tokens_in", "tokens_out", "retrieval_setting", "answer_grade"]
+           "retries", "tokens_in", "tokens_out", "retrieval_setting", "answer_grade",
+           # extra columns (after the brief's 12) so every table number, incl. peak queue and the
+           # waiting/working/retrying split, can be recomputed from this one file
+           "outcome", "queue_wait_ms", "limiter_wait_ms", "retry_ms", "work_ms"]
 
 
-def log_result(res: RequestResult, scenario: str, url: str, answer_grade: str = "") -> None:
+def log_result(res: RequestResult, scenario: str, url: str, answer_grade: str = "",
+               results_csv: Path | None = None) -> None:
+    out_csv = results_csv or RESULTS_CSV
     source = "real" if url == GROQ_URL else "stand-in"
     row = {
         "request_id": res.request_id,
@@ -38,9 +43,14 @@ def log_result(res: RequestResult, scenario: str, url: str, answer_grade: str = 
         "tokens_out": res.tokens_out,
         "retrieval_setting": res.retrieval_setting,
         "answer_grade": answer_grade,
+        "outcome": res.outcome,
+        "queue_wait_ms": round(res.queue_wait_ms),
+        "limiter_wait_ms": round(res.limiter_wait_ms),
+        "retry_ms": round(res.retry_ms),
+        "work_ms": round(res.work_ms),
     }
-    new = not RESULTS_CSV.exists()
-    with open(RESULTS_CSV, "a", newline="") as f:
+    new = not out_csv.exists()
+    with open(out_csv, "a", newline="") as f:
         w = csv.DictWriter(f, fieldnames=COLUMNS)
         if new:
             w.writeheader()

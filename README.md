@@ -34,3 +34,10 @@ python scripts/hello_groq.py                                          # 1 real G
 python tests/test_pipeline_offline.py                      # all paths with a fake model, free
 python scripts/ask.py "What latency does Moshi achieve?"   # 2-4 real Groq calls, logged to results.csv
 ```
+
+## Step 4: stand-in + load scenarios (no Groq quota)
+
+```bash
+python standin/calibrate.py          # fit the stand-in to your real Groq calls
+python scripts/load_test.py          # all scenarios: steady, burst, burst_naive, overload, halved, daily
+```

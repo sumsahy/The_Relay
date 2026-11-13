@@ -8,6 +8,32 @@ Git commits hold the code; this file holds the reasoning.
 
 ---
 
+## v0.5: stand-in, queue, rate limiter, load scenarios  (2026-11-14, ~03:00)
+
+**What exists**
+- `standin/server.py`: Groq-shaped fake service. Limits = our account's (RPM, TPM with prompt+max_tokens reservation,
+  RPD refilling 1 per 86.4 s, TPD), Groq-format 429s + headers, latency from `calibration.json`, slowdown per call in
+  flight, 1% 500s, 0.5% hangs, 2% slow tail, streams pieces after hidden "thinking" time. Canned but valid answers.
+- `standin/calibrate.py`: fits the latency model to every real Groq call we logged.
+- `relay/service.py`: admission control (don't admit if expected wait > 3 min, P5), queue, workers, our own
+  token-bucket rate limiter (calls wait *before* sending), adopts a changed provider limit from headers,
+  drops requests whose person gave up, pre-filter when the queue builds or daily budget is low, refuses at the
+  door once the daily limit is hit (P7).
+- `scripts/load_test.py`: steady, burst, burst_naive (retry-storm demo), overload, halved, daily. Simulated patience.
+- results.csv: the brief's 12 columns + outcome, queue_wait_ms, limiter_wait_ms, retry_ms, work_ms.
+
+**First result (scale 10, same 96-request burst):** our design 49 answered + 6 pre-filtered, 0 rate-limited, 3 retries.
+Naive (no limiter/queue, retries on) 29 answered, 67 rate-limited, **145 retries**: the retry-made-it-worse case.
+
+| Decision | Choice | Decided by | Status |
+|---|---|---|---|
+| Stand-in capacity for load scenarios | 10x account limits (pending Sumukh's answer) | Claude recommendation | **pending** |
+| Patience model | lognormal, median 45 s | Claude default (least certain assumption) | not reviewed |
+| Extra results.csv columns | outcome + waiting/working/retrying split | Claude default | not reviewed |
+| Abandoned requests | dropped from queue; cancelled mid-work | Claude default | not reviewed |
+
+---
+
 ## v0.4: cross-paper completeness, token budgets, retry policy, Table 3 runner  (2026-11-14, ~01:30)
 
 | Decision | Choice | Decided by | Principle | Status |
