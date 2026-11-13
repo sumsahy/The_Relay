@@ -225,3 +225,12 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
   (Real-world reading: at paid-tier per-minute speed, a free daily budget lasts minutes.)
 - **daily: didn't exhaust** (60 requests left was enough for 24 arrivals). Redesigned: start with ~60K tokens left.
 - Not used for tables: latency was uncalibrated, and overload/daily were wrong. Rerun after calibration.
+
+## E19: stand-in calibration from real Groq calls  (2026-11-14 03:48, Sumukh)
+- 114 real Groq calls (E12, E15 timings, E17) + the probe. Real TTFT p50 **499 ms**, p95 **681 ms**.
+- Fitted: base TTFT median 446 ms (lognormal sigma 0.31) + 39 ms per 1K prompt tokens; visible output ~1,367 tokens/s;
+  **+12.8% latency per extra call in flight** (from the probe: 10 at once vs one at a time).
+- Caveats for "where the stand-in differs most":
+  - the in-flight slowdown comes from ONE probe of 10 tiny requests; extrapolating it to 8+ long calls is a guess;
+  - median draft output (89 tokens) is pulled down by E15's many short refusals;
+  - real Groq's latency also depends on other customers' traffic, which we can't see or model.
