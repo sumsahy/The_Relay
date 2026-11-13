@@ -114,10 +114,10 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
   1. **44 completion tokens for "hello relay"**: about 40 are hidden reasoning tokens. gpt-oss "thinks" before answering,
      and those tokens are billed against our token limits. They also explain why TTFT (601 ms) is almost the whole call:
      the first *visible* token only arrives after the thinking.
-  2. **7723 remaining = 8000 - 277**, and 277 = 77 prompt + **200 max_tokens**, not 77 + 44 used.
+  2. *(confirmed in E13)* **7723 remaining = 8000 - 277**, and 277 = 77 prompt + **200 max_tokens**, not 77 + 44 used.
      Hypothesis: Groq reserves prompt + max_tokens against the per-minute token limit up front. If true, a generous
      max_tokens costs us TPM capacity even when unused. Needs confirming with a second call at a different max_tokens.
-  3. **reset-requests 1m26.4s = 86,400 s / 1,000.** The daily request limit seems to refill gradually (one request
+  3. *(confirmed in E13)* **reset-requests 1m26.4s = 86,400 s / 1,000.** The daily request limit seems to refill gradually (one request
      every 86.4 s), not all at once at midnight. If true, "daily budget exhausted" recovers slowly, which changes how
      the system should behave in that scenario. Needs confirming.
   4. **reset-tokens 2.077s**: per-minute tokens also refill continuously (a "token bucket"), not in fixed minute windows.
@@ -147,3 +147,16 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
   "Groq checks prompt + max_tokens (900) before admitting", i.e. E10 hypothesis 2, but deducts what is actually used.
   **Still unconfirmed**: needs the 429 error body and a controlled probe (same prompt, different max_tokens).
 - Bug found: `ask.py` crashed printing a failed step (KeyError 'ms'). Fixed.
+
+## E13: why Q2 lost half its answer, and what the 429 said  (2026-11-14 00:03, `show_last.py`, no Groq calls)
+- **Q2 dropped claims: the verifier was right.** Both Dynamic Chunking claims passed the quote check (the quotes are real)
+  but the model then *inferred* "reduces path length / shortens the distance dependencies travel", which the passages
+  never say. The LLM verifier rejected both as unsupported. This is P1 working: the draft model over-reached and got caught.
+  Real gap: the retrieved Dynamic Chunking passages (intro, §1) don't discuss long-range dependencies at all.
+  Side effect: the user got a "reduced" label but wasn't told that the *entire* Dynamic Chunking half is missing.
+- **The 429 body confirms E10 hypothesis 2:** "Limit 8000, Used 5257, **Requested 3496**". The request was ~2,596 prompt
+  tokens + **900 max_tokens** = 3,496. Groq reserves prompt + max_tokens against TPM before admitting a call.
+  Our drafts actually produced 83 to 270 output tokens, so ~630+ tokens of every draft's reservation are wasted.
+- **It also says when to retry:** `retry-after: 6` and "Please try again in 5.6475s". A single 6-second wait would have succeeded.
+- **E10 hypothesis 3 confirmed:** reset-requests = 5m45.6s with 4 requests used = 4 x 86.4 s. The daily request limit
+  refills one request every 86.4 s, continuously. It is not a midnight reset.
