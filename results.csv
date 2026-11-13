@@ -7,7 +7,7 @@ section-300-k5-Q05,quality,real,2026-11-13T21:54:02.871711+00:00,9110,9110,ok,2,
 section-300-k5-Q06,quality,real,2026-11-13T21:54:44.703264+00:00,883,883,ok,0,3338,263,section-300/k5/hybrid/no-rerank,refused_wrongly,answered_reduced,0,0,0,883
 section-300-k5-Q07,quality,real,2026-11-13T21:55:11.765249+00:00,1360,1360,ok,0,3983,435,section-300/k5/hybrid/no-rerank,correct,answered,0,0,0,1359
 section-300-k5-Q08,quality,real,2026-11-13T21:55:44.148378+00:00,971,971,ok,0,2418,204,section-300/k5/hybrid/no-rerank,correct,answered,0,0,0,970
-section-300-k5-Q09,quality,real,2026-11-13T21:56:05.693062+00:00,411,411,ok,0,2336,72,section-300/k5/hybrid/no-rerank,correct,refused_not_in_papers,0,0,0,411
+section-300-k5-Q09,quality,real,2026-11-13T21:56:05.693062+00:00,411,411,ok,0,2336,72,section-300/k5/hybrid/no-rerank,wrong,refused_not_in_papers,0,0,0,411
 section-300-k5-Q10,quality,real,2026-11-13T21:56:23.710740+00:00,5425,5425,ok,1,4640,405,section-300/k5/hybrid/no-rerank,refused_wrongly,refused_unverifiable,0,0,3973,1451
 section-300-k5-Q11,quality,real,2026-11-13T21:57:00.427549+00:00,611,611,ok,0,2351,62,section-300/k5/hybrid/no-rerank,refused_correctly,refused_not_in_papers,0,0,0,611
 section-300-k5-Q12,quality,real,2026-11-13T21:57:19.934978+00:00,449,449,ok,0,2052,104,section-300/k5/hybrid/no-rerank,refused_correctly,refused_not_in_papers,0,0,0,449
