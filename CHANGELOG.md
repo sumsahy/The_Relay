@@ -26,7 +26,9 @@ Git commits hold the code; this file holds the reasoning.
 | Embedding / re-rank models | bge-small-en-v1.5 / ms-marco-MiniLM-L-6 via fastembed (torch install too heavy here) | Claude default | not reviewed |
 | Test questions for retrieval | written by Claude, 36 | Claude default | not reviewed |
 | Chunking + retrieval | section chunks + hybrid (BM25 + embeddings), no re-ranker | Sumukh | **final** (21:00, 13 Nov) |
-| Re-ranker, transcript fix, unanswerable pre-filter | under discussion | Sumukh | **pending** |
+| Re-ranker | A: never in the live path | Sumukh | final (reasoning: _to add_) |
+| Transcript fix | D: leave as is, document it. Rank 5 is good enough because embeddings compensate | Sumukh | final |
+| Unanswerable pre-filter (embedding score cutoff) | only when under load or low on budget | Sumukh | final (reasoning: _to add_; cutoff value to set from real data) |
 
 ---
 
