@@ -40,7 +40,7 @@ Raw outputs live in `results/raw/` and are never overwritten or deleted.
 
 ---
 
-# Overnight retrieval experiments (run by Claude while Sumukh slept, 2026-11-13)
+# Overnight retrieval experiments (2026-11-13)
 
 Scope set by Sumukh: compare retrieval methods (BM25 / embeddings / re-ranking) and chunking options.
 Citation format chosen by Sumukh: paper + section.
