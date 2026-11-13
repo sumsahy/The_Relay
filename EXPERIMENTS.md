@@ -182,6 +182,8 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
 - Silver lining: with a third of the library gone, **the pipeline refused rather than invented answers (P1 held)**.
 - But nothing *noticed* the broken index. Fix: a startup guard refuses to build an index if any paper extracts far
   fewer words than expected. Pinned pypdf==7.0.1.
+- **Confirmed in the Codespace:** pypdf 6.17.0 on Python 3.14.2 extracts **moshi: 66 pages, 0 words** (attention 6,022, dynchunk 20,628). The whole Moshi paper was missing.
+- Budget check: results.csv held 48 rows / 113,501 tokens (45 E15 runs + 3 E12 runs); plus ~5K for the probe.
 - Re-baseline with pypdf 7.0.1 (retrieval test set, no Groq): **286 chunks, hit@5 = 24/30** (6.17 baseline: 280, 25/30).
   Newly missed: M1 (Moshi latency) just outside the top 5. Within noise.
 - Raw data kept (archived, not used for Table 3): its Groq call timings are still real and feed calibration.
