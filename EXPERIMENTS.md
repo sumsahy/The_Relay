@@ -160,3 +160,13 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
 - **It also says when to retry:** `retry-after: 6` and "Please try again in 5.6475s". A single 6-second wait would have succeeded.
 - **E10 hypothesis 3 confirmed:** reset-requests = 5m45.6s with 4 requests used = 4 x 86.4 s. The daily request limit
   refills one request every 86.4 s, continuously. It is not a midnight reset.
+
+## E14: Table 1 probe  (2026-11-14 02:40, `scripts/probe_limits.py`, run by Sumukh)
+- Raw: `results/raw/probe_limits.jsonl` (in the Codespace; to be pushed)
+- **In flight:** 10 requests at once, 10/10 ok. No in-flight limit hit at 10. Latency min 399 ms, max 1,458 ms:
+  concurrency does slow calls down (slowest ~3.7x the fastest), feeding the stand-in's slowdown-per-call-in-flight.
+- **Requests per minute:** 429 on the 31st request, 13.8 s into back-to-back sending. Body: "requests per minute (RPM):
+  Limit 30, Used 30, Requested 1. Please try again in 2s". `retry-after: 2`. Confirms RPM = 30 (high confidence).
+- **Recovery:** first retry after 2.9 s succeeded. Fits a continuously refilling bucket: 30/min = one request every 2 s.
+- Process note: Claude's earlier plan assumed quota would refill overnight; Sumukh pointed out we're finishing tonight,
+  so Table 3 was cut to fit one day (15 questions on the chosen setting, same 8 on the other two).
