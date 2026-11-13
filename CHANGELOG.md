@@ -25,7 +25,8 @@ Git commits hold the code; this file holds the reasoning.
 | Run every combination, report one-change-at-a-time + interactions | full grid | Claude, explained to Sumukh | done |
 | Embedding / re-rank models | bge-small-en-v1.5 / ms-marco-MiniLM-L-6 via fastembed (torch install too heavy here) | Claude default | not reviewed |
 | Test questions for retrieval | written by Claude, 36 | Claude default | not reviewed |
-| Chunking, re-ranker, transcript fix, unanswerable pre-filter | see report | Sumukh | **pending** |
+| Chunking + retrieval | section chunks + hybrid (BM25 + embeddings), no re-ranker | Sumukh | **final** (21:00, 13 Nov) |
+| Re-ranker, transcript fix, unanswerable pre-filter | under discussion | Sumukh | **pending** |
 
 ---
 
