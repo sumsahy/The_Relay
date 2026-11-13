@@ -29,6 +29,11 @@ INDEX_DIR = ROOT / "data" / "index"
 EMBED_MODEL = "BAAI/bge-small-en-v1.5"
 
 SECTION_CAP, SECTION_OVERLAP = 300, 50
+
+# Startup guard (E15): pypdf 6.17 on Python 3.14 silently lost most of the text of one paper and the
+# pipeline kept running on half a library. Refuse to start if any paper extracts far fewer words than
+# expected (counts from pypdf 7.0.1: attention 6,123 / moshi 30,429 / dynchunk 21,933).
+MIN_WORDS = {"attention": 5500, "moshi": 27000, "dynchunk": 19500}
 RRF_K, RRF_DEPTH = 60, 50
 
 # ------------------------------------------------------------------ section detection
@@ -96,6 +101,11 @@ def build_chunks(paper_dir: Path = PAPER_DIR, chunking: str = "section") -> list
         raise FileNotFoundError(f"No PDFs in {paper_dir}. Run: python scripts/fetch_papers.py")
     for pdf in pdfs:
         pages = [(p.extract_text() or "").split("\n") for p in PdfReader(pdf).pages]
+        n_words = sum(len(l.split()) for lines in pages for l in lines)
+        if n_words < MIN_WORDS.get(pdf.stem, 0):
+            raise RuntimeError(f"{pdf.name}: extracted only {n_words} words (expected >= {MIN_WORDS[pdf.stem]}). "
+                               f"PDF text extraction is broken (pypdf version? corrupted download?). Refusing to "
+                               f"build an index from a partial library.")
         drop = _repeated_lines(pages)
         words: list[tuple[str, int, str]] = []          # (word, page, section)
         section, seen_refs = "front matter", False

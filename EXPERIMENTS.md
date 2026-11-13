@@ -170,3 +170,18 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
 - **Recovery:** first retry after 2.9 s succeeded. Fits a continuously refilling bucket: 30/min = one request every 2 s.
 - Process note: Claude's earlier plan assumed quota would refill overnight; Sumukh pointed out we're finishing tonight,
   so Table 3 was cut to fit one day (15 questions on the chosen setting, same 8 on the other two).
+
+## E15: first Table 3 run, INVALID: half the library was missing  (2026-11-14 ~02:50, run by Sumukh)
+- What happened: all 45 runs completed (105,275 tokens, avg 2,339/run), but the index had **138 section chunks
+  instead of ~280** (and 184 instead of ~399 for 200-word chunks), with dozens of "Error -3 while decompressing data"
+  messages from pypdf. One PDF (very likely Moshi) failed to extract.
+- Symptom: **every Moshi question (Q03, Q04, Q05, Q11) was refused as not in the papers.**
+- Cause: Claude's pin `pypdf==6.17.0` (made in E10 to match the experiments) fails on the Codespace's Python 3.14.
+  It worked on Claude's Python 3.13, which is why it was never caught. pypdf 7.0.1 (what the Codespace had before)
+  parses all three on both.
+- Silver lining: with a third of the library gone, **the pipeline refused rather than invented answers (P1 held)**.
+- But nothing *noticed* the broken index. Fix: a startup guard refuses to build an index if any paper extracts far
+  fewer words than expected. Pinned pypdf==7.0.1.
+- Re-baseline with pypdf 7.0.1 (retrieval test set, no Groq): **286 chunks, hit@5 = 24/30** (6.17 baseline: 280, 25/30).
+  Newly missed: M1 (Moshi latency) just outside the top 5. Within noise.
+- Raw data kept (archived, not used for Table 3): its Groq call timings are still real and feed calibration.

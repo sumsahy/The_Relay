@@ -1,4 +1,4 @@
-pypdf==6.17.0   # pinned: text extraction differs between versions (see E10)
+pypdf==7.0.1   # pinned: 6.17 failed to parse the PDFs on Python 3.14 (E15); 7.0.1 gives 286 chunks
 rank_bm25>=0.2.2
 httpx>=0.27
 python-dotenv>=1.0

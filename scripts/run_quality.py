@@ -54,18 +54,21 @@ def done_pairs() -> set:
 async def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--subset", default=",".join(SUBSET),
+                   help="question ids for the two non-chosen settings, e.g. Q01,Q09,Q13")
     a = p.parse_args()
+    subset = [x.strip() for x in a.subset.split(",") if x.strip()]
     qs = [q for q in json.load(open(ROOT / "eval" / "quality_questions.json"))["questions"]
           if not q["q"].startswith("EXAMPLE")]
     if not qs:
         sys.exit("Add your questions to eval/quality_questions.json first (the EXAMPLE ones are skipped).")
     done = done_pairs()
     todo = [(s, q) for s in SETTINGS for q in qs
-            if (s == CHOSEN or q["id"] in SUBSET)
+            if (s == CHOSEN or q["id"] in subset)
             and f"{s.split('/')[0]}-{s.split('/')[1]}-{q['id']}" not in done]
-    total = len(qs) + len(SUBSET) * (len(SETTINGS) - 1)
-    print(f"{len(qs)} questions on the chosen setting + {len(SUBSET)} on each other setting = {total} runs; "
-          f"{len(todo)} to do; estimated ~{len(todo) * 4.5:.0f}K tokens (daily limit 200K)")
+    total = len(qs) + len(subset) * (len(SETTINGS) - 1)
+    print(f"{len(qs)} questions on the chosen setting + {len(subset)} on each other setting = {total} runs; "
+          f"{len(todo)} to do; estimated ~{len(todo) * 2.8:.0f}K tokens (E15 measured ~2.3K/run with refusals; more answers now)")
     if a.dry_run:
         return
     retrievers: dict = {}

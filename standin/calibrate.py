@@ -12,10 +12,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 calls = []
-for line in (ROOT / "results/raw/requests.jsonl").read_text().splitlines():
-    r = json.loads(line)
-    if r.get("source") == "real":
-        calls += [c for c in r["calls"] if c["ok"] and c["ttft_ms"]]
+# every real Groq call counts, incl. the E15 run with the broken index: its call timings are still real
+for path in sorted((ROOT / "results/raw").glob("requests*.jsonl")):
+    for line in path.read_text().splitlines():
+        r = json.loads(line)
+        if r.get("source") == "real":
+            calls += [c for c in r["calls"] if c["ok"] and c["ttft_ms"]]
 if len(calls) < 5:
     raise SystemExit(f"only {len(calls)} real calls with timings; run some real requests first")
 
