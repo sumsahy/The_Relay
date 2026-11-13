@@ -81,27 +81,46 @@ for k in keys:
     cost = (sum(int(r["tokens_in"]) for r in rs) * PRICE_IN + sum(int(r["tokens_out"]) for r in rs) * PRICE_OUT) / 1e6
     per1000 = 1000 * cost / len(answered) if answered else float("nan")
     b_rows.append(f"| {k[0]} | {share('ok'):.1f} | {share('rate_limited'):.1f} | {share('timeout'):.1f} "
-                  f"(errors {share('error'):.1f}) | {sum(int(r['retries']) for r in rs) / n:.2f} | {peak_queue(rs)} | "
+                  f"| {sum(int(r['retries']) for r in rs) / n:.2f} | {peak_queue(rs)} | "
                   f"{(sum(tok) / len(tok)) if tok else float('nan'):.0f} | ${per1000:.2f} (free tier: $0) |")
 
 out.append("\n## Table 2b: Outcomes, same rows\n")
 out.append("| Scenario | Succeeded % | Rate-limited % | Timed out or given up % | Retries per request | Peak queue length | Tokens per answer | Cost per 1,000 answers |")
 out.append("|---|---|---|---|---|---|---|---|")
 out += b_rows
+errs = {k[0]: 100 * sum(r["status"] == "error" for r in by[k]) / len(by[k]) for k in keys}
+out.append("\nErrors (status=error, not in the brief's columns): " +
+           ", ".join(f"{k} {v:.1f}%" for k, v in errs.items()))
 
 out.append("\n## Table 3: Retrieval settings (real Groq, scenario 'quality')\n")
 out.append("| Setting (piece size, pieces fetched, re-rank) | Questions asked | Correct and cited % | Wrong % | Correctly refused % | Tokens per answer | First token p50 / p95 (ms) | Total time p50 / p95 (ms) |")
 out.append("|---|---|---|---|---|---|---|---|")
 q = [r for r in rows if r["scenario"] == "quality" and r["source"] == "real"]
-for setting in sorted({r["retrieval_setting"] for r in q}):
+CHOSEN = "section-300/k5/hybrid/no-rerank"
+qid = lambda r: r["request_id"].rsplit("-", 1)[-1]
+others = [r for r in q if r["retrieval_setting"] != CHOSEN]
+subset = sorted({qid(r) for r in others})
+groups = []
+for setting in sorted({r["retrieval_setting"] for r in q}, key=lambda x: x != CHOSEN):
     rs = [r for r in q if r["retrieval_setting"] == setting]
+    groups.append((setting + (" (all questions)" if setting == CHOSEN and others else ""), rs))
+    if setting == CHOSEN and others:
+        # like-for-like: the chosen setting on exactly the questions the other settings were asked
+        groups.append((setting + f" (same {len(subset)} as below)", [r for r in rs if qid(r) in subset]))
+notes = []
+for name, rs in groups:
     graded = [r for r in rs if r["answer_grade"]]
     g = lambda x: 100 * sum(r["answer_grade"] == x for r in graded) / len(graded) if graded else float("nan")
     tok = [int(r["tokens_in"]) + int(r["tokens_out"]) for r in rs]
     ft = [float(r["first_token_ms"]) for r in rs if r["first_token_ms"]]
     tt = [float(r["total_ms"]) for r in rs]
     p2 = lambda xs: "not measured" if not xs else f"{pct(xs, 50):.0f} / {pct(xs, 95):.0f}"
-    out.append(f"| {setting} | {len(rs)} ({len(graded)} graded) | {g('correct'):.1f} | {g('wrong'):.1f} | "
+    out.append(f"| {name} | {len(rs)} ({len(graded)} graded) | {g('correct'):.1f} | {g('wrong'):.1f} | "
                f"{g('refused_correctly'):.1f} | {sum(tok) / len(tok):.0f} | {p2(ft)} | {p2(tt)} |")
+    notes.append(f"- {name}: refused wrongly {g('refused_wrongly'):.1f}% "
+                 f"({sum(r['answer_grade'] == 'refused_wrongly' for r in graded)} of {len(graded)})")
+out.append(f"\nSubset asked of every setting: {', '.join(subset)}. Compare settings on the 'same' rows only.")
+out.append("The brief's columns leave out wrongly refused answers; they are the remainder:")
+out += notes
 (ROOT / "results" / "tables.md").write_text("\n".join(out) + "\n")
 print("\n".join(out))
