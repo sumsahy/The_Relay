@@ -176,12 +176,16 @@ Full report: `results/retrieval_report.md`. Tables: `results/retrieval_tables.md
   instead of ~280** (and 184 instead of ~399 for 200-word chunks), with dozens of "Error -3 while decompressing data"
   messages from pypdf. One PDF (very likely Moshi) failed to extract.
 - Symptom: **every Moshi question (Q03, Q04, Q05, Q11) was refused as not in the papers.**
-- Cause: Claude's pin `pypdf==6.17.0` (made in E10 to match the experiments) fails on the Codespace's Python 3.14.
+- **Root cause (found 03:08): the Codespace's `moshi.pdf` had been replaced** by a different file: 6,865,366 bytes,
+  modified 2026-11-13 19:55 UTC, md5 51d4211e..., vs the original download (4,694,312 bytes, md5 c18d8ed0...). Neither pypdf
+  version can read it (7.0.1 also gave 144 chunks / 15 of 30). The other two PDFs were unchanged. Cause of the replacement unknown.
+- Contributing: Claude's pin `pypdf==6.17.0` (made in E10 to match the experiments) fails on the Codespace's Python 3.14.
   It worked on Claude's Python 3.13, which is why it was never caught. pypdf 7.0.1 (what the Codespace had before)
   parses all three on both.
 - Silver lining: with a third of the library gone, **the pipeline refused rather than invented answers (P1 held)**.
-- But nothing *noticed* the broken index. Fix: a startup guard refuses to build an index if any paper extracts far
-  fewer words than expected. Pinned pypdf==7.0.1.
+- But nothing *noticed* the broken index. Fixes: a startup guard refuses to build an index if any paper extracts far
+  fewer words than expected; pinned pypdf==7.0.1; re-download moshi.pdf and check its md5 against the original.
+- Lesson: verify inputs (file hashes, word counts) at startup, don't assume files on disk are the ones you tested with.
 - **Confirmed in the Codespace:** pypdf 6.17.0 on Python 3.14.2 extracts **moshi: 66 pages, 0 words** (attention 6,022, dynchunk 20,628). The whole Moshi paper was missing.
 - Budget check: results.csv held 48 rows / 113,501 tokens (45 E15 runs + 3 E12 runs); plus ~5K for the probe.
 - Re-baseline with pypdf 7.0.1 (retrieval test set, no Groq): **286 chunks, hit@5 = 24/30** (6.17 baseline: 280, 25/30).

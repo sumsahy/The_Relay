@@ -13,6 +13,9 @@ PAPERS = {
 }
 
 OUT = Path(__file__).resolve().parent.parent / "data" / "papers"
+# md5 of the files every experiment in this repo used (E15: a replaced moshi.pdf silently broke a run)
+MD5 = {"attention": "18e1b007a1dab45b30cc861ba2dfda25", "moshi": "c18d8ed0cc989509089af289c4010b14",
+       "dynchunk": "274fd334546d71272bab79c7613f5ac2"}
 
 
 def main() -> None:
@@ -20,7 +23,9 @@ def main() -> None:
     for name, arxiv_id in PAPERS.items():
         dest = OUT / f"{name}.pdf"
         if dest.exists():
-            print(f"skip {name} (already downloaded)")
+            import hashlib
+            md5 = hashlib.md5(dest.read_bytes()).hexdigest()
+            print(f"skip {name} (already downloaded) md5 {'OK' if md5 == MD5[name] else 'MISMATCH ' + md5}")
             continue
         url = f"https://arxiv.org/pdf/{arxiv_id}"
         print(f"fetching {name} from {url}")
